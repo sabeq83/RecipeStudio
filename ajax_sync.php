@@ -47,7 +47,8 @@ try {
                 echo json_encode(['success' => false, 'error' => 'ID resep tidak valid.']);
                 exit;
             }
-            $res = $syncClient->pushRecipeToLive($recipeId);
+            $targetProduct = !empty($_POST['target_product']) ? trim($_POST['target_product']) : null;
+            $res = $syncClient->pushRecipeToLive($recipeId, $targetProduct);
             echo json_encode($res);
             exit;
 
@@ -68,7 +69,8 @@ try {
             foreach ($ids as $rid) {
                 $rid = (int)$rid;
                 if ($rid <= 0) continue;
-                $res = $syncClient->pushRecipeToLive($rid);
+                $targetProduct = !empty($_POST['target_product']) ? trim($_POST['target_product']) : null;
+                $res = $syncClient->pushRecipeToLive($rid, $targetProduct);
                 if (!empty($res['success'])) {
                     $successCount++;
                 } else {

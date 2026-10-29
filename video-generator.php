@@ -331,11 +331,16 @@ if (isset($_REQUEST['ajax_action'])) {
     }
 }
 
-// Fetch recipes list for dropdown
-$recipesQuery = "SELECT r.recipe_id, r.recipe_title, r.recipe_time, r.recipe_image, r.recipe_description, c.category_name 
+// Fetch recipes list for dropdown filtered by active product
+$activeProduct = $_SESSION['active_product'] ?? 'airfry';
+$productFilterSql = ($activeProduct === 'airfry') 
+    ? "(r.product_code = 'airfry' OR r.product_code IS NULL OR r.product_code = '')" 
+    : "r.product_code = '" . $connect->real_escape_string($activeProduct) . "'";
+
+$recipesQuery = "SELECT r.recipe_id, r.recipe_title, r.recipe_time, r.recipe_image, r.recipe_description, r.product_code, c.category_name 
     FROM `tbl_recipes` r 
     LEFT JOIN `tbl_category` c ON r.cat_id = c.cid 
-    
+    WHERE $productFilterSql
     ORDER BY r.recipe_id DESC";
 $recipesResult = $connect->query($recipesQuery);
 $allRecipes = [];

@@ -312,9 +312,15 @@ class RecipeImporterService
                 throw new Exception('Resep ini baru saja diterbitkan oleh proses lain.');
             }
 
+            $productCode = trim($data['product_code'] ?? 'airfry');
+            if (empty($productCode)) {
+                $productCode = 'airfry';
+            }
+
             // Insert into tbl_recipes
             $insertSql = "INSERT INTO tbl_recipes (
                 cat_id,
+                product_code,
                 recipe_title,
                 recipe_time,
                 recipe_description,
@@ -327,7 +333,7 @@ class RecipeImporterService
                 tags,
                 total_views,
                 last_update
-            ) VALUES (?, ?, ?, ?, ?, '', 'cda11up', 'Post', '', 0, '', 0, NOW())";
+            ) VALUES (?, ?, ?, ?, ?, ?, '', 'cda11up', 'Post', '', 0, '', 0, NOW())";
 
             $stmt = $this->db->prepare($insertSql);
             if (!$stmt) {
@@ -335,8 +341,9 @@ class RecipeImporterService
             }
 
             $stmt->bind_param(
-                'issss',
+                'isssss',
                 $catId,
+                $productCode,
                 $title,
                 $recipeTime,
                 $recipeDescription,

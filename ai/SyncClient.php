@@ -56,6 +56,45 @@ class SyncClient
         return self::DEFAULT_SECRET_TOKEN;
     }
 
+
+    /**
+     * Mengambil target URL dan Token berdasarkan product_code
+     */
+    public function getDestinationForProduct(string $productCode): array
+    {
+        $safe = $this->db->real_escape_string($productCode);
+        $res = $this->db->query("SELECT * FROM tbl_sync_destinations WHERE product_code = '$safe' AND is_active = 1 LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            return [
+                'label' => $row['label'],
+                'target_url' => $row['target_api_url'],
+                'token' => $row['sync_token']
+            ];
+        }
+
+        // Fallback default
+        return [
+            'label' => 'Live Default Hosting',
+            'target_url' => $this->getTargetUrl(),
+            'token' => $this->getSecretToken()
+        ];
+    }
+
+    /**
+     * Ambil semua destinasi sync aktif
+     */
+    public function getAllDestinations(): array
+    {
+        $list = [];
+        $res = $this->db->query("SELECT * FROM tbl_sync_destinations ORDER BY id ASC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $list[] = $row;
+            }
+        }
+        return $list;
+    }
+
     public function setConfig(string $targetUrl, string $secretToken): bool
     {
         $targetUrl = trim($targetUrl);
@@ -114,7 +153,7 @@ class SyncClient
     /**
      * Push a local recipe + image to live shared hosting.
      */
-    public function pushRecipeToLive(int $recipeId): array
+    public function pushRecipeToLive(int $recipeId, ?string $targetProduct = null): array
     {
         if ($recipeId <= 0) {
             return ['success' => false, 'error' => 'ID resep tidak valid.'];

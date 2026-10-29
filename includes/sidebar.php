@@ -119,6 +119,11 @@
                     <span>Setting</span>
                 </a>
 
+                <a href="sync-destinations.php" class="menu-item <?php if ($script == 'sync-destinations.php') echo 'active'; ?>">
+                    <i class="material-icons" style="color:#00BCD4;">cloud_sync</i>
+                    <span>Live Sync Profil</span>
+                </a>
+
                 <a href="apps.php" class="menu-item <?php if (strpos($script, 'apps') !== false) echo 'active'; ?>">
                     <i class="material-icons">adb</i>
                     <span>Apps</span>

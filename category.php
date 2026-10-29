@@ -4,16 +4,28 @@
 
 	error_reporting(0);
 
-	if (isset($_REQUEST['keyword']) && $_REQUEST['keyword']<>"") {
-		$keyword = $_REQUEST['keyword'];
-		$reload = "category.php";
-		$sql =  "SELECT * FROM tbl_category WHERE category_name LIKE '%$keyword%'";
-		$result = $connect->query($sql);
-	} else {
-		$reload = "category.php";
-		$sql =  "SELECT * FROM tbl_category ORDER BY cid DESC";
-		$result = $connect->query($sql);
+	$activeProduct = $_SESSION['active_product'] ?? 'airfry';
+	$viewScope = $_GET['scope'] ?? 'app';
+
+	$whereParts = [];
+	if (isset($_REQUEST['keyword']) && $_REQUEST['keyword'] != "") {
+		$keyword = $connect->real_escape_string(trim($_REQUEST['keyword']));
+		$whereParts[] = "category_name LIKE '%$keyword%'";
 	}
+
+	if ($viewScope !== 'all') {
+		if ($activeProduct === 'airfry') {
+			$whereParts[] = "(product_code = 'airfry' OR product_code IS NULL OR product_code = '')";
+		} else {
+			$safeProduct = $connect->real_escape_string($activeProduct);
+			$whereParts[] = "product_code = '$safeProduct'";
+		}
+	}
+
+	$whereSql = !empty($whereParts) ? "WHERE " . implode(" AND ", $whereParts) : "";
+	$reload = "category.php?scope=" . urlencode($viewScope);
+	$sql = "SELECT * FROM tbl_category $whereSql ORDER BY cid DESC";
+	$result = $connect->query($sql);
 
 	$rpp = $postPerPage;
 	$page = intval($_GET["page"]);

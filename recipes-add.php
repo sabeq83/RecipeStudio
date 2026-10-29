@@ -118,8 +118,10 @@
 
         }
 
+        $targetProduct = $_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry');
         $data = array(
             'cat_id'              => $_POST['cat_id'],
+            'product_code'        => $targetProduct,
             'recipe_title'        => $_POST['recipe_title'],
             'video_url'           => isset($video) ? $video : '',
             'video_id'            => $video_id,
@@ -130,7 +132,20 @@
             'size'                => isset($bytes) ? $bytes : ''
             );
 
-        $qry = insert('tbl_recipes', $data);
+                $qry = insert('tbl_recipes', $data);
+        $lastRecipeId = mysqli_insert_id($connect);
+
+        if ($lastRecipeId > 0 && (isset($_POST['calories']) || isset($_POST['protein_g']))) {
+            $cals = (int)($_POST['calories'] ?? 0);
+            $prot = (float)($_POST['protein_g'] ?? 0);
+            $carbs = (float)($_POST['carbs_g'] ?? 0);
+            $fat = (float)($_POST['fat_g'] ?? 0);
+            $portion = trim($_POST['serving_size_info'] ?? '1 porsi');
+            if ($cals > 0 || $prot > 0) {
+                $connect->query("INSERT INTO tbl_recipe_nutrition (recipe_id, calories, protein_g, carbs_g, fat_g, serving_size_info)
+                    VALUES ($lastRecipeId, $cals, $prot, $carbs, $fat, '" . $connect->real_escape_string($portion) . "')");
+            }
+        }
 
         if (isset($imageNames) && count($imageNames) > 0) {
             global $config;

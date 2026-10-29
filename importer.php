@@ -172,6 +172,7 @@ if (isset($_REQUEST['ajax_action'])) {
                     'instructions_json' => $instructions,
                     'selected_image_url' => trim($_POST['selected_image_url'] ?? ''),
                     'cat_id' => (int)($_POST['cat_id'] ?? 0),
+                    'product_code' => trim($_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry')),
                 ];
                 $importerService->saveDraft($id, $saveData);
                 echo safe_json_encode(['success' => true, 'message' => 'Draf berhasil disimpan.']);
@@ -205,6 +206,7 @@ if (isset($_REQUEST['ajax_action'])) {
                     'instructions_json' => $instructions,
                     'selected_image_url' => trim($_POST['selected_image_url'] ?? ''),
                     'cat_id' => (int)($_POST['cat_id'] ?? 0),
+                    'product_code' => trim($_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry')),
                 ];
 
                 $filePost = (!empty($_FILES['custom_image']['name']) && $_FILES['custom_image']['error'] === UPLOAD_ERR_OK) ? $_FILES['custom_image'] : null;
@@ -593,6 +595,16 @@ include_once('includes/header.php');
 
                             <form id="fetchForm" onsubmit="handleFetchUrl(event);">
                                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken); ?>">
+                                <div class="row clearfix" style="margin-bottom: 10px;">
+                                    <div class="col-md-5 col-sm-6 col-xs-12">
+                                        <label class="form-label" style="font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Target Aplikasi / Katalog:</label>
+                                        <select id="targetProductSelect" name="product_code" class="form-control" style="height:38px; border-radius:8px; font-weight:700; border-color:#CBD5E1;">
+                                            <option value="airfry" <?= ($activeProduct === 'airfry') ? 'selected' : '' ?>>🍳 AirFryer (English)</option>
+                                            <option value="nusasaji" <?= ($activeProduct === 'nusasaji') ? 'selected' : '' ?>>🇮🇩 Nusa Saji (Indonesia)</option>
+                                            <option value="proteinprep" <?= ($activeProduct === 'proteinprep') ? 'selected' : '' ?>>🥩 ProteinPrep (MealPrep)</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="row clearfix" style="margin-bottom: 0;">
                                     <div class="col-md-9 col-sm-8 col-xs-12">
                                         <div class="form-group form-float" style="margin-bottom: 8px;">

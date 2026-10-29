@@ -34,21 +34,31 @@
         exit;
     } 
 
-	if (isset($_REQUEST['keyword']) && $_REQUEST['keyword']<>"") {
-		$keyword = $_REQUEST['keyword'];
-		$reload = "recipes.php";
-		$sql =  "SELECT n.*, c.* FROM tbl_recipes n LEFT JOIN tbl_category c ON n.cat_id = c.cid
-					WHERE n.recipe_title LIKE '%$keyword%'
-					GROUP BY n.recipe_id  
-					ORDER BY n.recipe_id DESC";
-		$result = $connect->query($sql);
-	} else {
-		$reload = "recipes.php";
-		$sql =  "SELECT n.*, c.* FROM tbl_recipes n LEFT JOIN tbl_category c ON n.cat_id = c.cid
-					GROUP BY n.recipe_id  
-					ORDER BY n.recipe_id DESC";
-		$result = $connect->query($sql);
+	$activeProduct = $_SESSION['active_product'] ?? 'airfry';
+	$viewScope = $_GET['scope'] ?? 'app';
+
+	$whereConditions = [];
+	if (!empty($_REQUEST['keyword'])) {
+		$keyword = $connect->real_escape_string(trim($_REQUEST['keyword']));
+		$whereConditions[] = "n.recipe_title LIKE '%$keyword%'";
 	}
+
+	if ($viewScope !== 'all') {
+		if ($activeProduct === 'airfry') {
+			$whereConditions[] = "(n.product_code = 'airfry' OR n.product_code IS NULL OR n.product_code = '')";
+		} else {
+			$safeProduct = $connect->real_escape_string($activeProduct);
+			$whereConditions[] = "n.product_code = '$safeProduct'";
+		}
+	}
+
+	$whereSql = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+	$reload = "recipes.php?scope=" . urlencode($viewScope);
+	$sql = "SELECT n.*, c.category_name FROM tbl_recipes n LEFT JOIN tbl_category c ON n.cat_id = c.cid
+			$whereSql
+			GROUP BY n.recipe_id  
+			ORDER BY n.recipe_id DESC";
+	$result = $connect->query($sql);
 
 	$rpp = $postPerPage;
 	$page = intval($_GET["page"]);
@@ -144,7 +154,16 @@
 							<p align="center" style="font-size: 110%;">There are no recipes.</p>
 						<?php } else { ?>
 
-						<form method="post" action="" id="recipes-batch-form">
+						<div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; margin-left:8px;">
+	<a href="recipes.php?scope=app" class="button button-rounded waves-effect" style="background:<?= ($viewScope !== 'all') ? '#009688' : '#e2e8f0' ?>; color:<?= ($viewScope !== 'all') ? '#fff' : '#475569' ?>; font-weight:700; font-size:11px; padding:6px 14px;">
+		<i class="material-icons" style="font-size:14px; vertical-align:middle;">filter_list</i> Khusus <?= htmlspecialchars($productLabels[$activeProduct]['label'] ?? 'App Aktif') ?> (<?= htmlspecialchars($productLabels[$activeProduct]['lang'] ?? '') ?>)
+	</a>
+	<a href="recipes.php?scope=all" class="button button-rounded waves-effect" style="background:<?= ($viewScope === 'all') ? '#009688' : '#e2e8f0' ?>; color:<?= ($viewScope === 'all') ? '#fff' : '#475569' ?>; font-weight:700; font-size:11px; padding:6px 14px;">
+		<i class="material-icons" style="font-size:14px; vertical-align:middle;">public</i> Semua Resep (Lintas Aplikasi)
+	</a>
+</div>
+
+<form method="post" action="" id="recipes-batch-form">
 
 							<div style="margin-left: 8px; margin-top: -36px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
 								<button type="submit" name="submit" id="submit" class="button button-rounded waves-effect waves-float" onclick="return confirm('Are you sure want to delete all selected recipes?')">Delete selected items(s)</button>
@@ -190,7 +209,17 @@
 											</div>
 										</td>
 
-										<td style="vertical-align: middle;"><strong><?php echo htmlspecialchars($data['recipe_title']);?></strong></td>
+										<td style="vertical-align: middle;">
+	<?php
+	$pCode = $data['product_code'] ?? 'airfry';
+	$badgeColor = ($pCode === 'nusasaji') ? '#10B981' : (($pCode === 'proteinprep') ? '#6366F1' : '#F59E0B');
+	$badgeLabel = ($pCode === 'nusasaji') ? 'Nusa Saji' : (($pCode === 'proteinprep') ? 'ProteinPrep' : 'AirFryer');
+	?>
+	<div style="margin-bottom:4px;">
+		<span style="font-size:9.5px; font-weight:800; color:#FFF; background:<?= $badgeColor ?>; padding:2px 6px; border-radius:4px; text-transform:uppercase;"><?= $badgeLabel ?></span>
+	</div>
+	<strong><?php echo htmlspecialchars($data['recipe_title']);?></strong>
+</td>
 
 										<td style="vertical-align: middle;">
 											<?php

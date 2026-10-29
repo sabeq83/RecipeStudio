@@ -8,7 +8,7 @@
 		$ID = "";
 	}
 
-	$qry    = "SELECT * FROM tbl_recipes WHERE recipe_id = '$ID'";
+	$qry    = "SELECT r.*, n.calories, n.protein_g, n.carbs_g, n.fat_g, n.serving_size_info FROM tbl_recipes r LEFT JOIN tbl_recipe_nutrition n ON r.recipe_id = n.recipe_id WHERE r.recipe_id = '$ID'";
     $result = mysqli_query($connect, $qry);
     $data    = mysqli_fetch_assoc($result);
 
