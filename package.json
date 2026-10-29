@@ -1,0 +1,16 @@
+{
+  "name": "recipe-studio",
+  "version": "1.0.0",
+  "description": "Recipe Studio - Unified Multi-Product Production Hub (AirFryer, Nusa Saji, ProteinPrep)",
+  "private": true,
+  "scripts": {
+    "release": "node scripts/release.js",
+    "release-non-interactive": "node scripts/release.js --non-interactive",
+    "deploy:macmini": "node scripts/deploy-macmini.js --apply",
+    "deploy:macmini:dry-run": "node scripts/deploy-macmini.js",
+    "deploy:macmini:bootstrap": "node scripts/deploy-macmini.js --bootstrap --apply",
+    "deploy:macmini:rollback": "node scripts/deploy-macmini.js --rollback --apply",
+    "deploy:macmini:status": "node scripts/deploy-macmini.js --status",
+    "deploy:macmini:legacy-sync": "rsync -avz --exclude='upload/' --exclude='.DS_Store' --exclude='node_modules/' . macmini:/Users/masbenu/airfry_studio_v2/app/"
+  }
+}
