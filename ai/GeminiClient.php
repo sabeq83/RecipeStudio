@@ -856,8 +856,40 @@ class GeminiClient
         $stylePreset = !empty($options['style_preset']) ? trim($options['style_preset']) : 'Modern Fine Dining';
         $aspectRatio = !empty($options['aspect_ratio']) ? trim($options['aspect_ratio']) : '4:3';
         $promptCount = max(1, min(4, (int)($options['prompt_count'] ?? 1)));
+        $targetLang = !empty($options['target_language']) ? strtolower(trim($options['target_language'])) : 'auto';
 
-        $title = trim($recipeData['recipe_title'] ?? $recipeData['title'] ?? 'Air Fryer Recipe');
+        if ($targetLang === 'id') {
+            $langInstruction = "LANGUAGE REQUIREMENT: All recipe text (titles, summary, ingredients, instructions, and pro_tip) MUST be written in natural, mouthwatering, professional culinary Indonesian (Bahasa Indonesia). Do NOT translate into English. (Note: Only 'image_prompts' MUST remain in English for T2I engine compatibility).";
+            $titleInstruction = "1. CLICK-WORTHY TITLES (Bahasa Indonesia):\n"
+                . "   - Generate 1 irresistible, highly appetizing primary title and 2-3 catchy alternative titles in Bahasa Indonesia.\n"
+                . "   - Titles must be click-worthy, highlighting appetizing flavors, textures, aromas, or techniques authentic to the dish (e.g., 'Balado Terong Pedas Gurih Karamel: Bumbu Meresap Sempurna', 'Renyah Menggoda...', 'Gurih Nagih...').\n"
+                . "   - DO NOT inject or force appliances like 'Air Fryer' unless the original recipe explicitly specifies it.\n"
+                . "   - Titles MUST be distinctly different and much more enticing than the original title, avoiding bland or generic names.";
+            $ingredientsLang = "Standardize culinary Indonesian formatting for clarity (e.g. gunakan satuan baku seperti gr, sdm, sdt, buah, siung).";
+        } elseif ($targetLang === 'en') {
+            $langInstruction = "LANGUAGE REQUIREMENT: All recipe text (titles, summary, ingredients, instructions, and pro_tip) MUST be in professional, appetizing culinary English.";
+            $titleInstruction = "1. CLICK-WORTHY TITLES (English):\n"
+                . "   - Generate 1 irresistible, highly appetizing primary title and 2-3 catchy alternative titles in English.\n"
+                . "   - Titles must be click-worthy, highlighting appetizing flavors, textures, aromas, or techniques authentic to the dish (e.g., 'Crispy Golden Chili-Glazed Eggplant...', 'Garlic Butter...', 'Melt-in-Your-Mouth...').\n"
+                . "   - DO NOT inject or force appliances like 'Air Fryer' unless the original recipe explicitly specifies it.\n"
+                . "   - Titles MUST be distinctly different and much more enticing than the original title, avoiding bland or generic names.";
+            $ingredientsLang = "Only standardize culinary English formatting for clarity.";
+        } else {
+            // 'auto'
+            $langInstruction = "LANGUAGE REQUIREMENT (Auto-Detect):\n"
+                . "   - Detect the language of the original recipe text.\n"
+                . "   - If the original recipe is in Indonesian (Bahasa Indonesia), output ALL recipe text (titles, summary, ingredients, instructions, pro_tip) in natural, mouthwatering Bahasa Indonesia.\n"
+                . "   - If the original recipe is in English, output in appetizing culinary English.\n"
+                . "   - (CRITICAL: 'image_prompts' MUST ALWAYS remain in English for Text-to-Image AI compatibility regardless of recipe language).";
+            $titleInstruction = "1. CLICK-WORTHY TITLES:\n"
+                . "   - Generate 1 irresistible, highly appetizing primary title and 2-3 catchy alternative titles in the MATCHING language of the recipe (Indonesian if original is Indonesian, English if original is English).\n"
+                . "   - Titles must be click-worthy, highlighting appetizing flavors, textures, aromas, or techniques authentic to the dish.\n"
+                . "   - DO NOT inject or force appliances like 'Air Fryer' unless the original recipe explicitly specifies it.\n"
+                . "   - Titles MUST be distinctly different and much more enticing than the original title, avoiding bland or generic names.";
+            $ingredientsLang = "Standardize culinary formatting for clarity in the matching recipe language (e.g. keep gr, sdm, sdt, buah for Indonesian; tbsp, tsp, cups for English).";
+        }
+
+        $title = trim($recipeData['recipe_title'] ?? $recipeData['title'] ?? 'Delicious Recipe');
         $summary = trim($recipeData['summary'] ?? strip_tags($recipeData['recipe_description'] ?? ''));
         $prepTime = trim($recipeData['prep_time'] ?? '');
         $cookTime = trim($recipeData['cook_time'] ?? '');
@@ -904,46 +936,46 @@ class GeminiClient
         }
         $instructionsText = !empty($formattedInst) ? implode("\n", $formattedInst) : 'No instructions provided';
 
-        $systemPrompt = "You are an elite culinary author, recipe editor, and commercial food photography director specializing in premier Air Fryer culinary media.\n"
+        $systemPrompt = "You are an elite culinary author, recipe editor, and commercial food photography director specializing in premier culinary media and recipe publishing.\n"
             . "TASK: In ONE SINGLE PASS, enhance this recipe and craft photorealistic T2I image prompts.\n"
-            . "LANGUAGE: All generated text MUST be in professional, appetizing culinary English (do NOT translate to any other language).\n\n"
+            . "{$langInstruction}\n\n"
             . "CRITICAL RULES & STRICT GUARDRAILS:\n"
-            . "1. CLICK-WORTHY TITLES (English):\n"
-            . "   - Generate 1 irresistible, highly appetizing primary title and 2-3 catchy alternative titles.\n"
-            . "   - Titles must be click-worthy, highlighting appetizing textures, aromas, or techniques (e.g., 'Ultra-Crispy Garlic Butter...', 'Golden...', 'Melt-in-Your-Mouth...').\n"
-            . "   - Titles MUST be distinctly different and much more enticing than the original title, avoiding bland or generic names.\n\n"
+            . "{$titleInstruction}\n\n"
             . "2. INGREDIENTS PRESERVATION (CRITICAL STRICT GUARDRAIL):\n"
-            . "   - You MUST retain 100% of the exact ingredient quantities, numbers, measurements, and units (e.g., grams, ml, tbsp, tsp, cups, pieces) and ingredient types from the original recipe.\n"
-            . "   - Absolutely DO NOT alter, scale, omit, or invent ingredient amounts. If original has '2 tbsp olive oil' and '100g cheddar', you must strictly keep '2 tbsp olive oil' and '100g cheddar'.\n"
-            . "   - Only standardize culinary English formatting for clarity.\n\n"
+            . "   - You MUST retain 100% of the exact ingredient quantities, numbers, measurements, and units (e.g., grams, gr, kg, ml, sdm, sdt, buah, siung, lembar, tbsp, tsp, cups, pieces) and ingredient types from the original recipe.\n"
+            . "   - Absolutely DO NOT alter, scale, omit, or invent ingredient amounts. If original has '3 buah terong' and '50 gr cabai', you must strictly keep '3 buah terong' and '50 gr cabai'.\n"
+            . "   - {$ingredientsLang}\n\n"
             . "3. SUMMARY & NUTRITION FACTS PRESERVATION:\n"
-            . "   - Write a rich, mouthwatering narrative summary (2-3 sentences) detailing the dish's flavor, crispy/succulent texture, and why it is a standout air fryer meal.\n"
+            . "   - Write a rich, mouthwatering narrative summary (2-3 sentences) detailing the dish's aroma, succulent/crispy texture, richness, and appetizing culinary qualities.\n"
             . "   - NUTRITION PRESERVATION GUARDRAIL: If the original summary/description contains nutrition information or calorie counts (e.g. 'Each serving provides 507 kcal, 18g protein...'), you MUST preserve and include that EXACT nutrition statement verbatim at the end of the summary on a new line. Do NOT alter nutritional numbers. If no nutrition was provided originally, do not fabricate numbers.\n\n"
-            . "4. AIR FRYER INSTRUCTION PARAPHRASING:\n"
+            . "4. INSTRUCTION PARAPHRASING (FAITHFUL TO ORIGINAL COOKING METHOD):\n"
             . "   - Rewrite cooking instructions into clear, numbered, step-by-step directions.\n"
-            . "   - Paraphrase creatively so the text is NOT an identical copy of the source website.\n"
-            . "   - Explicitly integrate Air Fryer best practices: preheating the air fryer (specifying temp in °C and °F), placing food in a single layer without overlapping in the basket, flipping/shaking halfway through cooking, and clear visual doneness cues (e.g., golden crisp exterior, bubbling melted cheese, fork-tender).\n"
-            . "   - Provide 1 actionable 'airfryer_tips' on achieving maximum crispiness or optimal flavor.\n\n"
+            . "   - Paraphrase creatively so the text is NOT an identical copy of the source website, but STRICTLY PRESERVE the authentic cooking methods, techniques, and equipment used in the recipe (e.g., if the recipe uses a skillet/wajan for stir-frying/sautéing, keep it in a skillet/wajan; if deep-fried, keep deep-frying; if boiled/soup, keep boiling; if baked in an oven or cooked in an air fryer, keep that exact method).\n"
+            . "   - DO NOT invent, inject, or force an air fryer or any appliance unless the original recipe specifically uses it.\n"
+            . "   - Provide clear visual doneness cues (e.g., bumbu harum matang, warna keemasan, empuk meresap, caramelized edges).\n"
+            . "   - Provide 1 actionable culinary 'pro_tip' for maximizing flavor, texture, and aroma based on the actual cooking technique used in the dish.\n\n"
             . "5. PHOTOREALISTIC FOOD PHOTOGRAPHY T2I PROMPTS:\n"
             . "   - Visual Style requested: '{$stylePreset}'\n"
             . "   - Aspect Ratio: '{$aspectRatio}'\n"
-            . "   - Generate EXACTLY {$promptCount} commercial English image prompt(s) for Text-to-Image AI depicting the finished dish at its absolute most delicious (golden crispy textures, steam rising softly, herb garnish, authentic tableware, 85mm f/1.8 lens, diffused studio lighting, shallow depth of field, 8k resolution, no watermark).\n\n"
+            . "   - Generate EXACTLY {$promptCount} commercial English image prompt(s) for Text-to-Image AI depicting the finished dish at its absolute most delicious (authentic textures, steam rising softly, herb garnish, authentic tableware, 85mm f/1.8 lens, diffused studio lighting, shallow depth of field, 8k resolution, no watermark).\n\n"
             . "Return ONLY valid JSON strictly matching this schema:\n"
             . "{\n"
             . "  \"titles\": {\n"
-            . "    \"primary\": \"Ultra-Crispy Primary Title\",\n"
+            . "    \"primary\": \"Click-worthy Primary Title\",\n"
             . "    \"alternatives\": [\"Catchy Alternative 1\", \"Catchy Alternative 2\"]\n"
             . "  },\n"
-            . "  \"summary\": \"Appetizing narrative hook...\\n\\nEach serving provides 520 kcal, 37g protein...\",\n"
+            . "  \"summary\": \"Appetizing narrative hook...\\n\\nNutrition facts if present...\",\n"
             . "  \"ingredients\": [\"Exact ingredient 1 with measurement\", \"Exact ingredient 2 with measurement\"],\n"
-            . "  \"instructions\": [\"Step 1 with air fryer temp/preheat\", \"Step 2 with single layer placement\", \"Step 3 with flip halfway\"],\n"
-            . "  \"airfryer_tips\": \"Actionable pro tip for ultimate crispiness...\",\n"
+            . "  \"instructions\": [\"Step 1 with prep/heat\", \"Step 2 with cooking action\", \"Step 3 with doneness cue\"],\n"
+            . "  \"pro_tip\": \"Actionable chef pro-tip for optimal flavor and texture...\",\n"
             . "  \"image_prompts\": [\n"
             . "    {\"variation_number\": 1, \"title\": \"Hero Shot 45°\", \"prompt\": \"Detailed English T2I prompt...\", \"tags\": [\"Ratio: {$aspectRatio}\", \"Style: {$stylePreset}\"]}\n"
             . "  ]\n"
             . "}";
 
+        $langLabel = ($targetLang === 'id') ? 'Bahasa Indonesia' : (($targetLang === 'en') ? 'English' : 'Auto (Match original recipe language)');
         $userPrompt = "Original Recipe Data:\n"
+            . "Target Output Language: {$langLabel}\n"
             . "Title: {$title}\n"
             . "Prep Time: {$prepTime} | Cook Time: {$cookTime} | Servings: {$servings}\n"
             . "Original Summary:\n{$summary}\n\n"
@@ -1051,7 +1083,8 @@ class GeminiClient
                 'summary' => trim($parsed['summary'] ?? ''),
                 'ingredients' => is_array($parsed['ingredients'] ?? null) ? $parsed['ingredients'] : [],
                 'instructions' => is_array($parsed['instructions'] ?? null) ? $parsed['instructions'] : [],
-                'airfryer_tips' => trim($parsed['airfryer_tips'] ?? ''),
+                'pro_tip' => trim($parsed['pro_tip'] ?? ($parsed['cooking_tips'] ?? ($parsed['airfryer_tips'] ?? ''))),
+                'airfryer_tips' => trim($parsed['pro_tip'] ?? ($parsed['cooking_tips'] ?? ($parsed['airfryer_tips'] ?? ''))),
                 'image_prompts' => $imgPrompts
             ]
         ];

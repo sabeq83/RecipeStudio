@@ -1,5 +1,11 @@
 # Changelog
 
+## V3.2.0 — Multi-App Live Sync & AI Config Exclusive Accordion (30/10/2026)
+- Single-Column dan Exclusive Single-Open Accordion di ai-config.php dengan default tertutup
+- Multi-App Live Web Hosting Sync Manager dengan Bearer Token Generator per baris
+- Dropdown Aplikasi Target dinamis di Batch Orchestrator importer.php
+- Optimasi prompt resep multi-kategori dan perbaikan cache styling
+
 ## V3.1.0 — Redesign Tema Warna Nordic Warm (29/10/2026)
 - Redesign tema warna Recipe Studio ke palet Nordic Warm (Terracotta & Sand Warm)
 - Pembaruan tokens CSS airfry-suite.css dan airfry-theme.css

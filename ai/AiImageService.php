@@ -531,6 +531,150 @@ class AiImageService
     }
 
     /**
+     * Resilient Auto Image Generator for Batch Orchestrator:
+     * 1. Mencoba kirim task ke G-Labs Webhook jika API key ada. Jika berhasil, lakukan polling sinkron hingga selesai.
+     * 2. Jika G-Labs offline, tidak ada key, atau error, otomatis fallback ke Pollinations.ai (Flux Fast Photorealistic).
+     * 3. Menyimpan gambar ke upload/ lokal, mengoptimasi via ImageOptimizer, memperbarui selected_image_url di tbl_recipe_imports, dan mencatat di tbl_ai_generations.
+     */
+    public function generateOrchestratorImage(int $importId, string $prompt, string $stylePreset = 'Modern Fine Dining', string $aspectRatio = '4:3', string $modelOverride = ''): array
+    {
+        $config = $this->getConfig();
+        $apiKey = trim($config['glabs_api_key'] ?? '');
+        $model = !empty($modelOverride) ? $modelOverride : ($config['glabs_model'] ?? 'nano_banana_2');
+
+        $imageSaved = false;
+        $savedFilename = '';
+        $usedEngine = '';
+
+        // Opsi 1: Coba G-Labs jika key terisi
+        if (!empty($apiKey)) {
+            $taskRes = $this->submitImageTask($importId, $prompt, $stylePreset, $aspectRatio, $model);
+            if (!empty($taskRes['success']) && !empty($taskRes['task_id'])) {
+                $taskId = $taskRes['task_id'];
+                $genId = $taskRes['generation_id'] ?? null;
+                $pollStart = time();
+                // Polling sinkron maksimal 30 detik
+                while (time() - $pollStart < 30) {
+                    sleep(2);
+                    $pollRes = $this->pollAndDownload($taskId, $genId);
+                    if (!empty($pollRes['success']) && ($pollRes['status'] ?? '') === 'completed' && !empty($pollRes['image_filename'])) {
+                        $savedFilename = $pollRes['image_filename'];
+                        $imageSaved = true;
+                        $usedEngine = 'G-Labs (' . $model . ')';
+                        break;
+                    }
+                    if (($pollRes['status'] ?? '') === 'failed') {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Opsi 2: Fallback ke Pollinations AI jika G-Labs offline atau belum menghasilkan file
+        if (!$imageSaved) {
+            $pollinRes = $this->generateWithPollinations($prompt, $aspectRatio);
+            if (!empty($pollinRes['success']) && !empty($pollinRes['image_filename'])) {
+                $savedFilename = $pollinRes['image_filename'];
+                $imageSaved = true;
+                $usedEngine = 'Pollinations Flux Engine';
+
+                // Catat ke tbl_ai_generations
+                $stmt = $this->db->prepare("INSERT INTO `tbl_ai_generations` 
+                    (recipe_id, task_id, prompt, style_preset, model_used, aspect_ratio, status, image_filename) 
+                    VALUES (?, ?, ?, ?, 'pollinations_flux', ?, 'completed', ?)");
+                if ($stmt) {
+                    $taskIdVal = 'pollin_' . time() . '_' . substr(md5($prompt), 0, 6);
+                    $stmt->bind_param('issssss', $importId, $taskIdVal, $prompt, $stylePreset, $aspectRatio, $savedFilename);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+        }
+
+        if ($imageSaved && !empty($savedFilename)) {
+            // Update selected_image_url di tbl_recipe_imports
+            $stmt = $this->db->prepare("UPDATE tbl_recipe_imports SET selected_image_url = ? WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param('si', $savedFilename, $importId);
+                $stmt->execute();
+                $stmt->close();
+            }
+
+            return [
+                'success' => true,
+                'image_filename' => $savedFilename,
+                'image_url' => 'upload/' . $savedFilename,
+                'engine' => $usedEngine
+            ];
+        }
+
+        return [
+            'success' => false,
+            'error' => 'Gagal membuat foto AI baik via G-Labs maupun fallback engine.'
+        ];
+    }
+
+    /**
+     * Unduh gambar masakan berkualitas tinggi langsung dari Pollinations AI (Flux)
+     */
+    public function generateWithPollinations(string $prompt, string $aspectRatio = '4:3'): array
+    {
+        $width = 1024;
+        $height = 768;
+        if ($aspectRatio === '1:1') {
+            $width = 1024;
+            $height = 1024;
+        } elseif ($aspectRatio === '16:9') {
+            $width = 1280;
+            $height = 720;
+        } elseif ($aspectRatio === '9:16') {
+            $width = 720;
+            $height = 1280;
+        }
+
+        $seed = mt_rand(100000, 999999);
+        $cleanPrompt = rawurlencode(trim($prompt));
+        $url = "https://image.pollinations.ai/prompt/{$cleanPrompt}?width={$width}&height={$height}&nologo=true&seed={$seed}&model=flux";
+
+        $destFilename = 'ai_batch_' . time() . '_' . substr(md5(microtime() . $prompt), 0, 8) . '.jpg';
+        $destPath = __DIR__ . '/../upload/' . $destFilename;
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 45,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_USERAGENT => 'RecipeStudio/3.1'
+        ]);
+
+        $imgData = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        @curl_close($ch);
+
+        if ($err || $httpCode !== 200 || strlen($imgData) < 1000) {
+            return ['success' => false, 'error' => 'Gagal mengunduh gambar dari Pollinations: ' . ($err ?: "HTTP {$httpCode}")];
+        }
+
+        @file_put_contents($destPath, $imgData);
+
+        if (class_exists('ImageOptimizer') || file_exists(__DIR__ . '/../includes/ImageOptimizer.php')) {
+            require_once __DIR__ . '/../includes/ImageOptimizer.php';
+            \ImageOptimizer::optimize($destPath, 1080, 82);
+        }
+
+        return [
+            'success' => true,
+            'image_filename' => $destFilename,
+            'file_size' => file_exists($destPath) ? filesize($destPath) : 0
+        ];
+    }
+
+    /**
      * Apply generated image to recipe as main photo, and backup previous image.
      */
     public function applyImageToRecipe(int $generationId, int $recipeId): array

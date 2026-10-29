@@ -100,6 +100,7 @@ if (defined('ENABLE_STUDIO_FEATURES') && !ENABLE_STUDIO_FEATURES) {
 
 require_once('importer/UrlValidator.php');
 require_once('importer/parsers/ParserInterface.php');
+require_once('importer/parsers/CookpadParser.php');
 require_once('importer/parsers/BbcFoodParser.php');
 require_once('importer/parsers/JsonLdRecipeParser.php');
 require_once('importer/HtmlSanitizer.php');
@@ -110,6 +111,7 @@ require_once('ai/AiDatabaseMigration.php');
 require_once('ai/GeminiClient.php');
 require_once('ai/GlabsClient.php');
 require_once('ai/AiImageService.php');
+require_once('ai/SyncClient.php');
 
 $importerService = new Importer\RecipeImporterService($connect);
 $migration = new Importer\DatabaseMigration($connect);
@@ -258,8 +260,14 @@ if (isset($_REQUEST['ajax_action'])) {
                 $options = [
                     'style_preset' => trim($_POST['style_preset'] ?? 'Modern Fine Dining'),
                     'aspect_ratio' => trim($_POST['aspect_ratio'] ?? '4:3'),
+                    'target_language' => trim($_POST['target_language'] ?? 'auto'),
                     'prompt_count' => max(1, min(4, (int)($_POST['prompt_count'] ?? 1))),
                 ];
+
+                // Bebaskan kunci session file agar worker PHP tidak memblokir request lain
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    @session_write_close();
+                }
 
                 $res = $aiService->enhanceRecipeData($recipeData, $options);
                 echo safe_json_encode($res);
@@ -277,6 +285,9 @@ if (isset($_REQUEST['ajax_action'])) {
 
                 if (empty($prompt)) {
                     throw new Exception('Prompt foto tidak boleh kosong.');
+                }
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    @session_write_close();
                 }
                 $res = $aiService->submitImageTask($importId, $prompt, $style, $aspectRatio, $model);
                 echo safe_json_encode($res);
@@ -313,6 +324,324 @@ if (isset($_REQUEST['ajax_action'])) {
                 ]);
                 exit;
 
+            case 'orchestrate_single_url':
+                @set_time_limit(360);
+                @ini_set('max_execution_time', '360');
+                $url = trim($_POST['url'] ?? '');
+                if (empty($url)) {
+                    throw new Exception('URL sumber tidak boleh kosong.');
+                }
+
+                $defaultCatId = (int)($_POST['default_cat_id'] ?? 0);
+                $stylePreset = trim($_POST['style_preset'] ?? 'Modern Fine Dining');
+                $aspectRatio = trim($_POST['aspect_ratio'] ?? '4:3');
+                $targetLanguage = trim($_POST['target_language'] ?? 'auto');
+                $productCode = trim($_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry'));
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    @session_write_close();
+                }
+
+                // Step 1: Scrape & Parse Draf Awal
+                $importRes = $importerService->importUrl($url);
+                if (empty($importRes['import_id'])) {
+                    throw new Exception('Gagal memproses URL: ' . ($importRes['message'] ?? 'Respons scraper kosong'));
+                }
+                $importId = (int)$importRes['import_id'];
+                $draft = $importerService->getImportById($importId);
+                if (!$draft) {
+                    throw new Exception('Draf resep #' . $importId . ' tidak ditemukan.');
+                }
+
+                // Step 2: AI Polish Teks (Menggunakan prompt terpusat di GeminiClient via AiImageService)
+                $aiService = new Ai\AiImageService($connect);
+                $rawIngredients = $draft['ingredients'] ?? [];
+                $rawInstructions = $draft['instructions'] ?? [];
+
+                $recipeData = [
+                    'recipe_title' => $draft['recipe_title'] ?? '',
+                    'prep_time' => $draft['prep_time'] ?? '',
+                    'cook_time' => $draft['cook_time'] ?? '',
+                    'servings' => $draft['servings'] ?? '',
+                    'summary' => $draft['summary'] ?? '',
+                    'ingredients' => $rawIngredients,
+                    'instructions' => $rawInstructions,
+                ];
+
+                $polishRes = $aiService->enhanceRecipeData($recipeData, [
+                    'style_preset' => $stylePreset,
+                    'aspect_ratio' => $aspectRatio,
+                    'target_language' => $targetLanguage,
+                    'prompt_count' => 1
+                ]);
+
+                $polishedTitle = $draft['recipe_title'];
+                $polishedSummary = $draft['summary'];
+                $polishedIngredients = $rawIngredients;
+                $polishedInstructions = $rawInstructions;
+                $imagePrompt = 'Commercial food photography of ' . $polishedTitle . ', ' . $stylePreset . ', 8k resolution';
+
+                if (!empty($polishRes['success']) && !empty($polishRes['data'])) {
+                    $pData = $polishRes['data'];
+                    if (!empty($pData['titles']['primary'])) {
+                        $polishedTitle = $pData['titles']['primary'];
+                    }
+                    if (!empty($pData['summary'])) {
+                        $polishedSummary = $pData['summary'];
+                    }
+                    if (!empty($pData['ingredients']) && is_array($pData['ingredients'])) {
+                        $polishedIngredients = $pData['ingredients'];
+                    }
+                    if (!empty($pData['instructions']) && is_array($pData['instructions'])) {
+                        $polishedInstructions = $pData['instructions'];
+                    }
+                    if (!empty($pData['image_prompts'][0]['prompt'])) {
+                        $imagePrompt = $pData['image_prompts'][0]['prompt'];
+                    }
+                }
+
+                // Target category
+                $finalCatId = ($defaultCatId > 0) ? $defaultCatId : ($draft['cat_id'] ?: 0);
+
+                // Update draf dengan hasil polish
+                $saveData = [
+                    'recipe_title' => $polishedTitle,
+                    'prep_time' => $draft['prep_time'] ?? '',
+                    'cook_time' => $draft['cook_time'] ?? '',
+                    'servings' => $draft['servings'] ?? '',
+                    'summary' => $polishedSummary,
+                    'ingredients_json' => $polishedIngredients,
+                    'instructions_json' => $polishedInstructions,
+                    'selected_image_url' => $draft['selected_image_url'] ?? '',
+                    'cat_id' => $finalCatId,
+                    'product_code' => $productCode,
+                ];
+                $importerService->saveDraft($importId, $saveData);
+
+                // Step 3: Wajib Generate Foto AI Baru & Unik
+                $imageRes = $aiService->generateOrchestratorImage($importId, $imagePrompt, $stylePreset, $aspectRatio);
+                $finalImage = $draft['selected_image_url'] ?? '';
+                $imageEngine = 'Default';
+                if (!empty($imageRes['success']) && !empty($imageRes['image_filename'])) {
+                    $finalImage = $imageRes['image_filename'];
+                    $imageEngine = $imageRes['engine'] ?? 'AI Engine';
+                }
+
+                // Ambil draf terbaru
+                $updatedDraft = $importerService->getImportById($importId);
+
+                // Dapatkan nama kategori
+                $catName = 'Uncategorized';
+                if (!empty($updatedDraft['cat_id'])) {
+                    $cStmt = $connect->prepare("SELECT category_name FROM tbl_category WHERE cid = ? LIMIT 1");
+                    if ($cStmt) {
+                        $cStmt->bind_param('i', $updatedDraft['cat_id']);
+                        $cStmt->execute();
+                        $cRow = $cStmt->get_result()->fetch_assoc();
+                        if ($cRow) {
+                            $catName = $cRow['category_name'];
+                        }
+                        $cStmt->close();
+                    }
+                }
+
+                echo safe_json_encode([
+                    'success' => true,
+                    'import_id' => $importId,
+                    'recipe_title' => $updatedDraft['recipe_title'],
+                    'summary' => $updatedDraft['summary'],
+                    'cat_id' => (int)$updatedDraft['cat_id'],
+                    'category_name' => $catName,
+                    'prep_time' => $updatedDraft['prep_time'],
+                    'cook_time' => $updatedDraft['cook_time'],
+                    'servings' => $updatedDraft['servings'],
+                    'ingredients' => $updatedDraft['ingredients'] ?? $polishedIngredients,
+                    'instructions' => $updatedDraft['instructions'] ?? $polishedInstructions,
+                    'selected_image_url' => $updatedDraft['selected_image_url'],
+                    'image_url' => !empty($updatedDraft['selected_image_url']) ? 'upload/' . basename($updatedDraft['selected_image_url']) : '',
+                    'image_engine' => $imageEngine,
+                    'image_prompt' => $imagePrompt,
+                    'status' => $updatedDraft['status'],
+                    'source_url' => $url,
+                ]);
+                exit;
+
+            case 'quick_add_category':
+                $catName = trim($_POST['category_name'] ?? '');
+                $prodCode = trim($_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry'));
+                if (empty($catName)) {
+                    throw new Exception('Nama kategori tidak boleh kosong.');
+                }
+
+                // Cek apakah sudah ada
+                $stmt = $connect->prepare("SELECT cid, category_name FROM tbl_category WHERE LOWER(category_name) = LOWER(?) LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param('s', $catName);
+                    $stmt->execute();
+                    $exist = $stmt->get_result()->fetch_assoc();
+                    $stmt->close();
+                    if ($exist) {
+                        echo safe_json_encode([
+                            'success' => true,
+                            'cid' => (int)$exist['cid'],
+                            'category_name' => $exist['category_name'],
+                            'message' => 'Kategori sudah ada, dipilih otomatis.'
+                        ]);
+                        exit;
+                    }
+                }
+
+                // Cek kolom product_code di tbl_category
+                $hasProdCol = false;
+                $colCheck = $connect->query("SHOW COLUMNS FROM `tbl_category` LIKE 'product_code'");
+                if ($colCheck && $colCheck->num_rows > 0) {
+                    $hasProdCol = true;
+                }
+
+                if ($hasProdCol) {
+                    $stmtIns = $connect->prepare("INSERT INTO tbl_category (category_name, category_image, product_code) VALUES (?, '', ?)");
+                    $stmtIns->bind_param('ss', $catName, $prodCode);
+                } else {
+                    $stmtIns = $connect->prepare("INSERT INTO tbl_category (category_name, category_image) VALUES (?, '')");
+                    $stmtIns->bind_param('s', $catName);
+                }
+
+                if (!$stmtIns || !$stmtIns->execute()) {
+                    throw new Exception('Gagal menambahkan kategori: ' . $connect->error);
+                }
+
+                $newCid = $stmtIns->insert_id;
+                $stmtIns->close();
+
+                echo safe_json_encode([
+                    'success' => true,
+                    'cid' => $newCid,
+                    'category_name' => $catName,
+                    'message' => 'Kategori baru berhasil ditambahkan.'
+                ]);
+                exit;
+
+            case 'update_draft_detail':
+                $id = (int)($_POST['import_id'] ?? 0);
+                if ($id <= 0) {
+                    throw new Exception('ID draf tidak valid.');
+                }
+                $rawIng = $_POST['ingredients'] ?? [];
+                $ingredients = is_string($rawIng) ? (json_decode($rawIng, true) ?: preg_split('/\r\n|\r|\n/', trim($rawIng))) : (is_array($rawIng) ? $rawIng : []);
+                $ingredients = array_values(array_filter(array_map('trim', $ingredients)));
+
+                $rawInst = $_POST['instructions'] ?? [];
+                $instructions = is_string($rawInst) ? (json_decode($rawInst, true) ?: preg_split('/\r\n|\r|\n/', trim($rawInst))) : (is_array($rawInst) ? $rawInst : []);
+                $instructions = array_values(array_filter(array_map('trim', $instructions)));
+
+                $saveData = [
+                    'recipe_title' => trim($_POST['recipe_title'] ?? ''),
+                    'prep_time' => trim($_POST['prep_time'] ?? ''),
+                    'cook_time' => trim($_POST['cook_time'] ?? ''),
+                    'servings' => trim($_POST['servings'] ?? ''),
+                    'summary' => trim($_POST['summary'] ?? ''),
+                    'ingredients_json' => $ingredients,
+                    'instructions_json' => $instructions,
+                    'selected_image_url' => trim($_POST['selected_image_url'] ?? ''),
+                    'cat_id' => (int)($_POST['cat_id'] ?? 0),
+                    'product_code' => trim($_POST['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry')),
+                ];
+                $importerService->saveDraft($id, $saveData);
+                $updatedDraft = $importerService->getImportById($id);
+
+                echo safe_json_encode([
+                    'success' => true,
+                    'message' => 'Detail draf berhasil diperbarui.',
+                    'draft' => $updatedDraft
+                ]);
+                exit;
+
+            case 'bulk_publish_drafts':
+                $draftIds = $_POST['draft_ids'] ?? [];
+                if (is_string($draftIds)) {
+                    $draftIds = json_decode($draftIds, true) ?: [];
+                }
+                if (!is_array($draftIds) || empty($draftIds)) {
+                    throw new Exception('Tidak ada resep yang dipilih untuk diterbitkan.');
+                }
+
+                $autoPush = !empty($_POST['auto_push']) && ($_POST['auto_push'] === 'true' || $_POST['auto_push'] === '1' || $_POST['auto_push'] === 1);
+                $syncClient = null;
+                if ($autoPush) {
+                    $syncClient = new Ai\SyncClient($connect);
+                }
+
+                $publishedList = [];
+                $errorList = [];
+
+                foreach ($draftIds as $rawId) {
+                    $importId = (int)$rawId;
+                    if ($importId <= 0) continue;
+
+                    try {
+                        $record = $importerService->getImportById($importId);
+                        if (!$record) {
+                            $errorList[] = "Draf #{$importId} tidak ditemukan.";
+                            continue;
+                        }
+                        if ($record['status'] === 'published') {
+                            $publishedList[] = [
+                                'import_id' => $importId,
+                                'recipe_id' => $record['recipe_id'],
+                                'title' => $record['recipe_title'],
+                                'note' => 'Sudah dipublish sebelumnya'
+                            ];
+                            continue;
+                        }
+
+                        $catId = (int)($record['cat_id'] ?? 0);
+                        if ($catId <= 0) {
+                            $errorList[] = "Draf #{$importId} ('{$record['recipe_title']}'): Kategori belum dipilih.";
+                            continue;
+                        }
+
+                        $publishData = [
+                            'recipe_title' => $record['recipe_title'],
+                            'prep_time' => $record['prep_time'],
+                            'cook_time' => $record['cook_time'],
+                            'servings' => $record['servings'],
+                            'summary' => $record['summary'],
+                            'ingredients_json' => $record['ingredients'],
+                            'instructions_json' => $record['instructions'],
+                            'selected_image_url' => $record['selected_image_url'],
+                            'cat_id' => $catId,
+                            'product_code' => $record['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry')
+                        ];
+
+                        $recipeId = $importerService->publishRecipe($importId, $publishData, 'upload');
+                        
+                        $syncStatus = null;
+                        if ($autoPush && $syncClient) {
+                            $targetPCode = $publishData['product_code'] ?? ($_SESSION['active_product'] ?? null);
+                            $syncRes = $syncClient->pushRecipeToLive($recipeId, $targetPCode);
+                            $syncStatus = !empty($syncRes['success']) ? 'Synced' : ('Sync failed: ' . ($syncRes['error'] ?? 'Unknown'));
+                        }
+
+                        $publishedList[] = [
+                            'import_id' => $importId,
+                            'recipe_id' => $recipeId,
+                            'title' => $record['recipe_title'],
+                            'sync_status' => $syncStatus
+                        ];
+                    } catch (Exception $pe) {
+                        $errorList[] = "Draf #{$importId}: " . $pe->getMessage();
+                    }
+                }
+
+                echo safe_json_encode([
+                    'success' => count($publishedList) > 0,
+                    'published_count' => count($publishedList),
+                    'total_requested' => count($draftIds),
+                    'published_list' => $publishedList,
+                    'errors' => $errorList,
+                    'message' => count($publishedList) . ' resep berhasil diterbitkan ke database!' . ($autoPush ? ' (Sinkronisasi live telah dijalankan).' : '')
+                ]);
+                exit;
+
             case 'run_migration':
                 $res = $migration->runMigration();
                 echo safe_json_encode($res);
@@ -340,6 +669,8 @@ if ($importId > 0) {
 $queueCount = $importerService->countImports('draft');
 $historyCount = $importerService->countImports();
 $categories = $importerService->getCategories();
+$syncDestClient = new Ai\SyncClient($connect);
+$syncDestinations = $syncDestClient->getActiveDestinations();
 
 include_once('includes/header.php');
 ?>
@@ -542,6 +873,289 @@ include_once('includes/header.php');
     .badge-status.published { background: #d4edda; color: #155724; }
     .badge-status.rejected { background: #f8d7da; color: #721c24; }
     .badge-status.failed { background: #f8d7da; color: #721c24; }
+
+    /* ==========================================================================
+       BATCH ORCHESTRATOR STYLES (Nordic Warm Theme)
+       ========================================================================== */
+    .orchestrator-input-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    @media (max-width: 991px) {
+        .orchestrator-input-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .panel-nordic-card {
+        background: #FFFFFF;
+        border: 1px solid #E7E5E4;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 16px -2px rgba(41, 37, 36, 0.05);
+    }
+    .panel-nordic-card .panel-heading {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1C1917;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #F5F1EB;
+        padding-bottom: 10px;
+    }
+    .url-textarea {
+        width: 100%;
+        height: 195px;
+        background: #FAF8F5;
+        border: 1px solid #D6D3D1;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        color: #1C1917;
+        resize: vertical;
+        line-height: 1.6;
+        transition: all 0.2s;
+    }
+    .url-textarea:focus {
+        outline: none;
+        border-color: #C2410C;
+        background: #FFFFFF;
+        box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.15);
+    }
+    .textarea-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 11.5px;
+        color: #78716C;
+    }
+    .notice-box {
+        background: #FFF1EB;
+        border: 1px solid #FED7AA;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 14px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 11.5px;
+        color: #9A3412;
+        line-height: 1.45;
+    }
+    .btn-start-orchestrator {
+        background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 16px;
+        box-shadow: 0 4px 14px rgba(194, 65, 12, 0.25);
+        transition: all 0.2s ease;
+    }
+    .btn-start-orchestrator:hover {
+        background: linear-gradient(135deg, #9A3412 0%, #7C2D12 100%);
+        box-shadow: 0 6px 18px rgba(194, 65, 12, 0.35);
+        color: #fff;
+    }
+    .btn-start-orchestrator:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    /* Stepper & Progress */
+    .progress-bar-track {
+        height: 10px;
+        background: #E7E5E4;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 14px;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #C2410C 0%, #EA580C 100%);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    .step-tracker-flex {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .step-item-pill {
+        flex: 1;
+        min-width: 110px;
+        background: #F5F1EB;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #78716C;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+    .step-item-pill.active {
+        background: #FFF1EB;
+        color: #C2410C;
+        border: 1px solid #FDBA74;
+    }
+    .step-item-pill.done {
+        background: #DCFCE7;
+        color: #15803D;
+        border: 1px solid #86EFAC;
+    }
+    .terminal-box {
+        background: #1C1917;
+        color: #E7E5E4;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 11px;
+        height: 110px;
+        overflow-y: auto;
+        line-height: 1.5;
+        border: 1px solid #292524;
+    }
+    .terminal-line { margin-bottom: 2px; }
+    .terminal-line.success { color: #4ADE80; }
+    .terminal-line.info { color: #38BDF8; }
+    .terminal-line.warn { color: #FBBF24; }
+    .terminal-line.error { color: #F87171; }
+
+    /* Review Table */
+    .table-batch-review {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table-batch-review th {
+        background: #FAF8F5;
+        color: #44403C;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 10px 12px;
+        border-bottom: 2px solid #E7E5E4;
+    }
+    .table-batch-review td {
+        padding: 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #F5F1EB;
+        font-size: 12.5px;
+    }
+    .table-batch-review tr:hover {
+        background: #FAF8F5;
+    }
+    .batch-thumb-img {
+        width: 68px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #E7E5E4;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .batch-thumb-img:hover {
+        transform: scale(1.08);
+    }
+    .inline-category-select {
+        padding: 5px 8px;
+        border-radius: 6px;
+        border: 1px solid #D6D3D1;
+        background: #FFFFFF;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #1C1917;
+        width: 100%;
+        max-width: 170px;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    .inline-category-select:focus {
+        outline: none;
+        border-color: #C2410C;
+    }
+
+    /* Floating Action Bar */
+    .floating-batch-bar {
+        position: fixed;
+        bottom: 20px;
+        left: 310px;
+        right: 30px;
+        background: rgba(28, 25, 23, 0.95);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid #44403C;
+        border-radius: 12px;
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 1040;
+        color: #FFFFFF;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @media (max-width: 768px) {
+        .floating-batch-bar {
+            left: 15px;
+            right: 15px;
+            bottom: 15px;
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch;
+        }
+    }
+    .floating-batch-bar .info-side {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .floating-batch-bar .action-side {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .btn-publish-all {
+        background: linear-gradient(135deg, #15803D 0%, #166534 100%);
+        color: white;
+        border: none;
+        padding: 9px 20px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+        transition: all 0.2s;
+    }
+    .btn-publish-all:hover {
+        background: linear-gradient(135deg, #166534 0%, #14532D 100%);
+        color: #fff;
+    }
+    .btn-publish-all:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 </style>
 
 <section class="content">
@@ -558,6 +1172,11 @@ include_once('includes/header.php');
             <a href="importer.php?tab=import" class="nav-link-btn <?php echo ($tab === 'import') ? 'active' : ''; ?>">
                 <i class="material-icons" style="font-size:18px;">cloud_download</i>
                 <span>Impor Manual</span>
+            </a>
+            <a href="importer.php?tab=batch" class="nav-link-btn <?php echo ($tab === 'batch') ? 'active' : ''; ?>" style="<?php echo ($tab === 'batch') ? 'background:#C2410C; color:#fff;' : ''; ?>">
+                <i class="material-icons" style="font-size:18px;">auto_mode</i>
+                <span>Batch Orchestrator</span>
+                <span class="badge" style="background:rgba(255,255,255,0.25); color:#fff; font-weight:700;">AUTO</span>
             </a>
             <a href="importer.php?tab=queue" class="nav-link-btn <?php echo ($tab === 'queue') ? 'active' : ''; ?>">
                 <i class="material-icons" style="font-size:18px;">rate_review</i>
@@ -587,10 +1206,10 @@ include_once('includes/header.php');
                         <div class="body">
                             <div class="card-step-header">
                                 <h4><span class="step-circle">1</span> Masukkan URL Resep</h4>
-                                <span class="label label-primary">BBC FOOD SUPPORTED</span>
+                                <span class="label" style="background:#C2410C; color:#fff; font-weight:700;">COOKPAD &amp; BBC FOOD SUPPORTED</span>
                             </div>
                             <p class="text-muted" style="margin-bottom: 12px;">
-                                Masukkan alamat URL halaman resep publik (misalnya dari BBC Food). Sistem akan memvalidasi, mengekstrak data resep, dan menyiapkannya untuk tinjauan.
+                                Masukkan alamat URL resep publik dari <strong>Cookpad</strong> (cookpad.com) atau <strong>BBC Food</strong>. Sistem akan memvalidasi, mengekstrak data resep, dan menyiapkannya untuk tinjauan.
                             </p>
 
                             <form id="fetchForm" onsubmit="handleFetchUrl(event);">
@@ -610,10 +1229,14 @@ include_once('includes/header.php');
                                         <div class="form-group form-float" style="margin-bottom: 8px;">
                                             <div class="form-line">
                                                 <input type="url" id="sourceUrl" name="url" class="form-control"
-                                                       placeholder="https://www.bbc.co.uk/food/recipes/..."
-                                                       value="<?php echo htmlspecialchars($currentDraft['source_url'] ?? 'https://www.bbc.co.uk/food/recipes/loaded_jacket_potatoes_15248'); ?>" required>
+                                                       placeholder="https://cookpad.com/id/resep/... atau https://www.bbc.co.uk/food/recipes/..."
+                                                       value="<?php echo htmlspecialchars($currentDraft['source_url'] ?? 'https://cookpad.com/id/resep/26787228'); ?>" required>
                                             </div>
-                                            <small class="help-block">Contoh teruji: <code>https://www.bbc.co.uk/food/recipes/loaded_jacket_potatoes_15248</code></small>
+                                            <small class="help-block">
+                                                Contoh teruji: 
+                                                <a href="javascript:void(0);" onclick="document.getElementById('sourceUrl').value='https://cookpad.com/id/resep/26787228';" style="font-weight:700; color:#C2410C; text-decoration:underline;">Cookpad (Balado Terong)</a> | 
+                                                <a href="javascript:void(0);" onclick="document.getElementById('sourceUrl').value='https://www.bbc.co.uk/food/recipes/loaded_jacket_potatoes_15248';" style="font-weight:600; color:#475569; text-decoration:underline;">BBC Food (Jacket Potatoes)</a>
+                                            </small>
                                         </div>
                                     </div>
                                     <div class="col-md-3 col-sm-4 col-xs-12">
@@ -643,33 +1266,47 @@ include_once('includes/header.php');
                                     </div>
 
                                     <!-- AI Magic Polish & Photo Prompts Component (1-Single-Call) -->
-                                    <div class="ai-polish-banner" style="background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #c7d2fe; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(99,102,241,0.08);">
-                                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                                            <div>
-                                                <div style="display:flex; align-items:center; gap:8px;">
-                                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:16px;">
+                                    <div class="ai-polish-banner" style="background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #c7d2fe; border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(99,102,241,0.08);">
+                                        <!-- Header & Pill Toggle -->
+                                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+                                            <div style="flex:1;">
+                                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                                    <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-size:16px; box-shadow:0 2px 6px rgba(99,102,241,0.3);">
                                                         <i class="material-icons" style="font-size:18px;">auto_awesome</i>
                                                     </span>
-                                                    <strong style="color:#1e1b4b; font-size:14px;">AI Magic Polish (1-Call Title, Paraphrase &amp; Photo)</strong>
-                                                    <span class="badge" style="background:#4338ca; font-size:10px; padding:3px 7px;">Gemini Unified</span>
+                                                    <strong style="color:#1e1b4b; font-size:14px; font-weight:700;">AI Magic Polish (1-Call Title, Paraphrase &amp; Photo)</strong>
+                                                    <span class="badge" style="background:#4338ca; font-size:10px; padding:3px 7px; border-radius:4px;">Gemini Unified</span>
                                                 </div>
-                                                <p style="margin:4px 0 0 36px; font-size:12px; color:#475569; line-height:1.4;">
+                                                <p style="margin:0 0 0 36px; font-size:12px; color:#475569; line-height:1.5;">
                                                     Sempurnakan judul menjadi <em>click-worthy</em> unik, parafrase instruksi &amp; summary (nutrisi &amp; takaran bahan tetap 100% terjaga), serta buatkan prompt foto T2I fotorealistik.
                                                 </p>
                                             </div>
-                                            <div>
-                                                <button type="button" id="btnToggleAiPanel" class="btn btn-primary waves-effect" onclick="toggleAiPolishPanel();" style="border-radius:6px; font-weight:600; background:linear-gradient(135deg, #4f46e5, #7c3aed); border:none; box-shadow:0 2px 5px rgba(79,70,229,0.3);">
-                                                    <i class="material-icons" style="font-size:16px; vertical-align:middle;">tune</i> <span id="toggleAiText">Buka Studio AI</span>
+                                            <div style="flex-shrink:0;">
+                                                <button type="button" id="btnToggleAiPanel" onclick="toggleAiPolishPanel();" style="border-radius:20px; font-weight:600; font-size:12px; padding:6px 14px; background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; display:inline-flex; align-items:center; gap:5px; cursor:pointer; transition:all 0.2s ease; outline:none;">
+                                                    <i class="material-icons" style="font-size:16px;">tune</i> <span id="toggleAiText">Buka Studio AI</span>
                                                 </button>
                                             </div>
                                         </div>
 
                                         <!-- Collapsible Polish Controls & Results -->
-                                        <div id="aiPolishContainer" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e1;">
-                                            <div class="row clearfix" style="margin-bottom:10px;">
+                                        <div id="aiPolishContainer" style="display:none; margin-top:14px; padding-top:14px; border-top:1px dashed #c7d2fe;">
+                                            <!-- Row 1: 3 Spacious Dropdown Inputs -->
+                                            <div class="row clearfix" style="margin-bottom:12px;">
+                                                <div class="col-sm-4 col-xs-12">
+                                                    <label style="font-size:11px; text-transform:uppercase; color:#475569; font-weight:700; margin-bottom:5px; display:block;">
+                                                        <i class="material-icons" style="font-size:13px; vertical-align:middle; color:#6366f1;">translate</i> Bahasa Hasil Polish
+                                                    </label>
+                                                    <select id="aiLanguage" class="form-control" style="border-radius:8px; border:1px solid #cbd5e1; height:38px; font-size:12.5px; font-weight:600; background:#fff; box-shadow:none;">
+                                                        <option value="auto" selected>Otomatis (Ikuti Resep Asli)</option>
+                                                        <option value="id">Bahasa Indonesia</option>
+                                                        <option value="en">English (Inggris)</option>
+                                                    </select>
+                                                </div>
                                                 <div class="col-sm-5 col-xs-12">
-                                                    <label style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:700;">Preset Gaya Foto</label>
-                                                    <select id="aiStylePreset" class="form-control" style="border-radius:6px; border:1px solid #cbd5e1; height:36px; font-size:12px;">
+                                                    <label style="font-size:11px; text-transform:uppercase; color:#475569; font-weight:700; margin-bottom:5px; display:block;">
+                                                        <i class="material-icons" style="font-size:13px; vertical-align:middle; color:#6366f1;">camera_alt</i> Preset Gaya Foto
+                                                    </label>
+                                                    <select id="aiStylePreset" class="form-control" style="border-radius:8px; border:1px solid #cbd5e1; height:38px; font-size:12.5px; font-weight:500; background:#fff; box-shadow:none;">
                                                         <option value="Modern Fine Dining" selected>Modern Fine Dining (Default)</option>
                                                         <option value="Rustic Kitchen Table">Rustic Kitchen Table</option>
                                                         <option value="Street Food Close-up">Street Food Close-up</option>
@@ -677,18 +1314,26 @@ include_once('includes/header.php');
                                                         <option value="Air Fryer Crisp Focus">Air Fryer Crisp Focus</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-sm-4 col-xs-12">
-                                                    <label style="font-size:11px; text-transform:uppercase; color:#64748b; font-weight:700;">Aspek Rasio</label>
-                                                    <select id="aiAspectRatio" class="form-control" style="border-radius:6px; border:1px solid #cbd5e1; height:36px; font-size:12px;">
+                                                <div class="col-sm-3 col-xs-12">
+                                                    <label style="font-size:11px; text-transform:uppercase; color:#475569; font-weight:700; margin-bottom:5px; display:block;">
+                                                        <i class="material-icons" style="font-size:13px; vertical-align:middle; color:#6366f1;">aspect_ratio</i> Aspek Rasio
+                                                    </label>
+                                                    <select id="aiAspectRatio" class="form-control" style="border-radius:8px; border:1px solid #cbd5e1; height:38px; font-size:12.5px; font-weight:600; background:#fff; box-shadow:none;">
                                                         <option value="4:3" selected>4:3 (Default Standar)</option>
                                                         <option value="1:1">1:1 (Square)</option>
                                                         <option value="16:9">16:9 (Landscape)</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-sm-3 col-xs-12" style="padding-top:22px;">
-                                                    <button type="button" id="btnRunAiPolish" class="btn btn-success btn-block waves-effect" onclick="runAiPolish();" style="border-radius:6px; font-weight:700; height:36px; background:#059669; border:none; box-shadow:0 2px 5px rgba(5,150,105,0.3);">
-                                                        <i class="material-icons" style="font-size:16px; vertical-align:middle;">bolt</i> <span>MULAI POLISH</span>
-                                                    </button>
+                                            </div>
+
+                                            <!-- Row 2: Full-Width Prominent Polish Button -->
+                                            <div style="margin-top:2px;">
+                                                <button type="button" id="btnRunAiPolish" onclick="runAiPolish();" style="width:100%; border-radius:8px; font-weight:700; font-size:13px; height:42px; background:linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color:#fff; border:none; box-shadow:0 3px 8px rgba(79,70,229,0.3); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s ease;">
+                                                    <i class="material-icons" style="font-size:18px;">auto_awesome</i>
+                                                    <span>MULAI POLISH RESEP (1-SINGLE-CALL)</span>
+                                                </button>
+                                                <div style="text-align:center; margin-top:6px; font-size:11px; color:#64748b;">
+                                                    *Menghasilkan 3 alternatif judul click-worthy, parafrase ringkasan &amp; instruksi, serta prompt foto T2I fotorealistik dalam sekali jalan.
                                                 </div>
                                             </div>
 
@@ -996,6 +1641,375 @@ include_once('includes/header.php');
 
             </div>
 
+        <?php elseif ($tab === 'batch'): ?>
+            <!-- TAB: BATCH RECIPE ORCHESTRATOR -->
+            <div class="row clearfix">
+                <div class="col-xs-12">
+                    <!-- Page Header Card -->
+                    <div class="card corner-radius" style="margin-bottom:20px; border:1px solid #E7E5E4; box-shadow:0 4px 18px -2px rgba(41, 37, 36, 0.05);">
+                        <div class="body" style="padding:22px 24px;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+                                <div>
+                                    <span style="display:inline-flex; align-items:center; gap:6px; background:#FFF1EB; color:#C2410C; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; margin-bottom:8px;">
+                                        <i class="material-icons" style="font-size:14px;">auto_mode</i> MASS RECIPE IMPORT &amp; AUTO-POLISH ENGINE
+                                    </span>
+                                    <h3 style="margin:0 0 6px 0; font-family:'Outfit', sans-serif; font-size:24px; font-weight:800; color:#1C1917; letter-spacing:-0.3px;">
+                                        Batch Recipe Orchestrator
+                                    </h3>
+                                    <p style="margin:0; font-size:13px; color:#78716C; max-width:850px; line-height:1.5;">
+                                        Tempel hingga 50 URL resep sekaligus. Sistem akan mengekstrak data dari web asal, memoles teks secara otomatis (100% menjaga takaran bahan &amp; panduan air fryer), membuat foto masakan AI photorealistic baru yang unik, dan menampilkannya di tabel review untuk Anda periksa atau edit sebelum diterbitkan.
+                                    </p>
+                                </div>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button type="button" class="btn btn-default waves-effect" onclick="loadSampleCookpadUrls();" style="border-radius:8px; font-size:12px; font-weight:700; color:#C2410C; border-color:#FED7AA; background:#FFF1EB;">
+                                        <i class="material-icons" style="font-size:15px; vertical-align:middle;">restaurant</i> Contoh Cookpad
+                                    </button>
+                                    <button type="button" class="btn btn-default waves-effect" onclick="loadSampleUrls();" style="border-radius:8px; font-size:12px; font-weight:600;">
+                                        <i class="material-icons" style="font-size:15px; vertical-align:middle; color:#44403C;">playlist_add</i> Contoh BBC Food
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grid: URL Input (Kiri) & Konfigurasi (Kanan) -->
+                    <div class="orchestrator-input-grid">
+                        <!-- Kolom Kiri: Input Multi-URL -->
+                        <div class="panel-nordic-card">
+                            <div class="panel-heading">
+                                <i class="material-icons" style="font-size:18px; color:#C2410C;">link</i>
+                                <span>1. Masukkan Daftar URL Resep Sumber</span>
+                            </div>
+                            <textarea id="batchUrlsInput" class="url-textarea" placeholder="Tempel URL resep di sini (satu URL per baris), contoh:&#10;https://www.bbc.co.uk/food/recipes/air_fryer_chicken_thighs&#10;https://www.bbc.co.uk/food/recipes/crispy_air_fryer_chips&#10;https://www.bbc.co.uk/food/recipes/air_fryer_salmon" oninput="updateUrlCounter();"></textarea>
+                            <div class="textarea-meta">
+                                <span id="urlCounterText"><strong>0</strong> URL terdeteksi</span>
+                                <span class="text-muted"><i class="material-icons" style="font-size:12px; vertical-align:middle;">info</i> Satu URL per baris (Maks. 50 URL)</span>
+                            </div>
+                        </div>
+
+                        <!-- Kolom Kanan: Parameter Batch & AI Generator -->
+                        <div class="panel-nordic-card">
+                            <div class="panel-heading">
+                                <i class="material-icons" style="font-size:18px; color:#C2410C;">tune</i>
+                                <span>2. Pengaturan Orkestrasi &amp; Kategori</span>
+                            </div>
+
+                            <!-- Target Product Code -->
+                            <div style="margin-bottom:12px;">
+                                <label style="display:block; font-size:11.5px; font-weight:700; color:#44403C; margin-bottom:4px;">Aplikasi Target:</label>
+                                <select id="batchProductCode" class="form-control" style="border-radius:6px; font-size:12.5px; font-weight:600; border-color:#D6D3D1;">
+                                    <?php if (empty($syncDestinations)): ?>
+                                        <option value="airfry" <?php echo (($_SESSION['active_product'] ?? '') === 'airfry') ? 'selected' : ''; ?>>Air Fryer Recipes (airfry)</option>
+                                        <option value="protein" <?php echo (($_SESSION['active_product'] ?? '') === 'protein') ? 'selected' : ''; ?>>Protein Prep (protein)</option>
+                                    <?php else: ?>
+                                        <?php foreach ($syncDestinations as $dest): 
+                                            $destCode = htmlspecialchars($dest['product_code']);
+                                            $destLabel = htmlspecialchars($dest['label']);
+                                            $isSel = (($_SESSION['active_product'] ?? '') === $dest['product_code']) ? 'selected' : '';
+                                        ?>
+                                            <option value="<?php echo $destCode; ?>" <?php echo $isSel; ?>>
+                                                <?php echo $destLabel; ?> (<?php echo $destCode; ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+
+                            <!-- Default Category -->
+                            <div style="margin-bottom:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                    <label style="margin:0; font-size:11.5px; font-weight:700; color:#44403C;">Kategori Default Batch:</label>
+                                    <a href="javascript:void(0);" onclick="quickAddCategoryPrompt('batchDefaultCatId');" style="font-size:11px; font-weight:700; color:#C2410C; text-decoration:none;">
+                                        + Tambah Cepat
+                                    </a>
+                                </div>
+                                <select id="batchDefaultCatId" class="form-control" style="border-radius:6px; font-size:12.5px; font-weight:600; border-color:#D6D3D1;">
+                                    <option value="0">-- Deteksi Otomatis dari Judul --</option>
+                                    <?php foreach ($categories as $cat): ?>
+                                        <option value="<?php echo (int)$cat['cid']; ?>"><?php echo htmlspecialchars($cat['category_name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <!-- AI Output Language -->
+                            <div style="margin-bottom:12px;">
+                                <label style="display:block; font-size:11.5px; font-weight:700; color:#44403C; margin-bottom:4px;">Bahasa Hasil Polish:</label>
+                                <select id="batchLanguage" class="form-control" style="border-radius:6px; font-size:12px; font-weight:600; border-color:#D6D3D1;">
+                                    <option value="auto" selected>Otomatis (Ikuti Resep Asli)</option>
+                                    <option value="id">Bahasa Indonesia</option>
+                                    <option value="en">English (Inggris)</option>
+                                </select>
+                            </div>
+
+                            <!-- AI Photo Style & Ratio -->
+                            <div class="row clearfix" style="margin-bottom:0;">
+                                <div class="col-xs-7" style="padding-right:6px;">
+                                    <label style="display:block; font-size:11px; font-weight:700; color:#44403C; margin-bottom:4px;">Gaya Foto AI:</label>
+                                    <select id="batchStylePreset" class="form-control" style="border-radius:6px; font-size:11.5px; border-color:#D6D3D1;">
+                                        <option value="Modern Fine Dining" selected>Modern Fine Dining</option>
+                                        <option value="Rustic Comfort Food">Rustic Comfort Food</option>
+                                        <option value="Editorial Studio Overhead">Editorial Studio</option>
+                                        <option value="Dark Moody Culinary">Dark Moody</option>
+                                    </select>
+                                </div>
+                                <div class="col-xs-5" style="padding-left:6px;">
+                                    <label style="display:block; font-size:11px; font-weight:700; color:#44403C; margin-bottom:4px;">Rasio:</label>
+                                    <select id="batchAspectRatio" class="form-control" style="border-radius:6px; font-size:11.5px; border-color:#D6D3D1;">
+                                        <option value="4:3" selected>4:3 (Utama)</option>
+                                        <option value="1:1">1:1 (Persegi)</option>
+                                        <option value="16:9">16:9 (Landscape)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Notice Box: Wajib Foto Baru -->
+                            <div class="notice-box">
+                                <i class="material-icons" style="font-size:17px; color:#C2410C;">verified</i>
+                                <div>
+                                    <strong>Wajib Foto Baru &amp; Unik:</strong> Setiap resep otomatis dibuatkan foto masakan AI photorealistic baru resolusi tinggi (1080px) dan disimpan ke folder <code>upload/</code> lokal tanpa gambar duplikat.
+                                </div>
+                            </div>
+
+                            <!-- Start Button -->
+                            <button type="button" id="btnStartBatch" class="btn-start-orchestrator" onclick="startBatchOrchestrator();">
+                                <i class="material-icons" style="font-size:18px;">bolt</i>
+                                <span>JALANKAN BATCH ORCHESTRATOR</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Progress Monitor (Hidden initially) -->
+                    <div id="batchProgressContainer" class="panel-nordic-card" style="display:none; margin-bottom:24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="preloader pl-size-xs" style="margin:0;">
+                                    <div class="spinner-layer pl-amber">
+                                        <div class="circle-clipper left"><div class="circle"></div></div>
+                                        <div class="circle-clipper right"><div class="circle"></div></div>
+                                    </div>
+                                </div>
+                                <span id="batchProgressStatusText" style="font-size:13.5px; font-weight:700; color:#1C1917;">Memulai antrean batch...</span>
+                            </div>
+                            <span id="batchProgressPercent" style="font-family:'Outfit', sans-serif; font-size:15px; font-weight:800; color:#C2410C;">0%</span>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress-bar-track">
+                            <div id="batchProgressBarFill" class="progress-bar-fill"></div>
+                        </div>
+
+                        <!-- Step Tracker -->
+                        <div class="step-tracker-flex">
+                            <div id="stepPill1" class="step-item-pill">
+                                <span class="badge" style="background:#78716C; color:#fff; font-size:10px;">1</span>
+                                <span>Scrape Web</span>
+                            </div>
+                            <div id="stepPill2" class="step-item-pill">
+                                <span class="badge" style="background:#78716C; color:#fff; font-size:10px;">2</span>
+                                <span>AI Polish &amp; Resep</span>
+                            </div>
+                            <div id="stepPill3" class="step-item-pill">
+                                <span class="badge" style="background:#78716C; color:#fff; font-size:10px;">3</span>
+                                <span>Auto Photo Studio</span>
+                            </div>
+                            <div id="stepPill4" class="step-item-pill">
+                                <span class="badge" style="background:#78716C; color:#fff; font-size:10px;">4</span>
+                                <span>Siap Review</span>
+                            </div>
+                        </div>
+
+                        <!-- Terminal Output Box -->
+                        <div id="batchTerminalBox" class="terminal-box">
+                            <div class="terminal-line info">[Sistem] Siap menerima antrean URL resep...</div>
+                        </div>
+                    </div>
+
+                    <!-- Batch Review Table Card -->
+                    <div id="batchReviewCard" class="card corner-radius" style="display:none; border:1px solid #E7E5E4; box-shadow:0 4px 18px -2px rgba(41, 37, 36, 0.05); margin-bottom:80px;">
+                        <div class="body" style="padding:0;">
+                            <div style="padding:16px 20px; border-bottom:1px solid #E7E5E4; display:flex; justify-content:space-between; align-items:center; background:#FAF8F5;">
+                                <div>
+                                    <h4 style="margin:0; font-size:15px; font-weight:800; color:#1C1917;">
+                                        <i class="material-icons" style="font-size:18px; vertical-align:middle; color:#15803D;">check_circle</i> Draf Resep Siap Tinjau
+                                    </h4>
+                                    <small style="color:#78716C;">Periksa judul hasil polish AI, ganti kategori secara langsung pada dropdown, atau klik tombol Preview untuk mengedit isi resep.</small>
+                                </div>
+                                <div>
+                                    <span id="batchTableCountBadge" class="badge" style="background:#C2410C; font-size:12px; padding:4px 10px;">0 Resep</span>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table-batch-review">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:40px; text-align:center;">
+                                                <input type="checkbox" id="checkAllBatch" checked onchange="toggleSelectAllBatch(this);">
+                                                <label for="checkAllBatch" style="margin:0; padding:0; height:18px;"></label>
+                                            </th>
+                                            <th style="width:80px; text-align:center;">Foto AI</th>
+                                            <th>Judul Resep Ter-Polish</th>
+                                            <th style="width:190px;">Kategori Resep</th>
+                                            <th style="width:140px;">Waktu &amp; Porsi</th>
+                                            <th style="width:120px; text-align:center;">Status</th>
+                                            <th style="width:150px; text-align:center;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="batchReviewTableBody">
+                                        <!-- Dynamic rows generated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Fixed Floating Action Bar -->
+            <div id="floatingBatchBar" class="floating-batch-bar" style="display:none;">
+                <div class="info-side">
+                    <label style="margin:0; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="batchAutoPushCheckbox" checked style="width:16px; height:16px; accent-color:#C2410C;">
+                        <span>Otomatis Sinkronisasi (1-Click Push) ke Aplikasi / Live Hosting</span>
+                    </label>
+                </div>
+                <div class="action-side">
+                    <span id="selectedBatchCountText" style="font-size:13px; font-weight:700; color:#FDBA74;">0 Resep Terpilih</span>
+                    <button type="button" class="btn-publish-all" id="btnPublishSelected" onclick="publishAllSelectedBatch();">
+                        <i class="material-icons" style="font-size:18px;">publish</i>
+                        <span>TERBITKAN SEMUA YANG DIPILIH</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Preview Draf Lengkap -->
+            <div class="modal fade" id="recipePreviewModal" tabindex="-1" role="dialog" data-backdrop="static">
+                <div class="modal-dialog modal-lg" role="document" style="max-width:920px;">
+                    <div class="modal-content" style="border-radius:12px; overflow:hidden; border:none; box-shadow:0 12px 36px rgba(0,0,0,0.25);">
+                        <div class="modal-header" style="background:#1C1917; color:#FFFFFF; padding:16px 22px;">
+                            <button type="button" class="close" data-dismiss="modal" style="color:#FFF; opacity:0.8;">&times;</button>
+                            <h4 class="modal-title" style="font-family:'Outfit', sans-serif; font-size:17px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                                <i class="material-icons" style="color:#C2410C;">preview</i> Pratinjau &amp; Edit Draf Resep
+                            </h4>
+                        </div>
+                        <div class="modal-body" style="padding:22px; background:#FAF8F5;">
+                            <input type="hidden" id="modalImportId" value="">
+
+                            <div class="row clearfix">
+                                <!-- Kolom Kiri: Foto AI & Prompt -->
+                                <div class="col-md-5 col-sm-12">
+                                    <div style="background:#FFF; border:1px solid #E7E5E4; border-radius:10px; padding:12px; margin-bottom:14px; text-align:center;">
+                                        <div style="position:relative; width:100%; height:230px; border-radius:8px; overflow:hidden; background:#1C1917;">
+                                            <img id="modalPreviewImg" src="" style="width:100%; height:100%; object-fit:cover;" alt="AI Generated Photo">
+                                            <span id="modalImgBadge" style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.65); color:#fff; font-size:10px; padding:2px 8px; border-radius:4px; font-weight:700;">
+                                                1080px Optimized
+                                            </span>
+                                        </div>
+                                        <div style="margin-top:10px; text-align:left;">
+                                            <label style="font-size:11px; font-weight:700; color:#78716C;">File Gambar:</label>
+                                            <input type="text" id="modalSelectedImageUrl" class="form-control" style="font-size:11px; font-family:monospace; background:#FAF8F5;" readonly>
+                                        </div>
+                                    </div>
+
+                                    <!-- Prompt AI Food Photo -->
+                                    <div style="background:#FFF; border:1px solid #E7E5E4; border-radius:10px; padding:12px;">
+                                        <label style="font-size:11px; font-weight:700; color:#78716C; margin-bottom:4px; display:block;">
+                                            <i class="material-icons" style="font-size:13px; vertical-align:middle; color:#C2410C;">auto_awesome</i> Prompt Foto AI Terpakai:
+                                        </label>
+                                        <div id="modalPhotoPromptText" style="font-size:11px; color:#44403C; line-height:1.4; max-height:80px; overflow-y:auto; background:#FAF8F5; padding:8px; border-radius:6px; font-style:italic;">
+                                            -
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Kolom Kanan: Form Field Edit Resep -->
+                                <div class="col-md-7 col-sm-12">
+                                    <div style="background:#FFF; border:1px solid #E7E5E4; border-radius:10px; padding:16px;">
+                                        <!-- Judul Resep -->
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <label style="font-size:12px; font-weight:700; color:#1C1917;">Judul Resep <span style="color:#DC2626;">*</span></label>
+                                            <input type="text" id="modalRecipeTitle" class="form-control" style="font-size:13px; font-weight:600; border-radius:6px;">
+                                        </div>
+
+                                        <!-- Kategori Resep -->
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                                <label style="font-size:12px; font-weight:700; color:#1C1917; margin:0;">Kategori Resep <span style="color:#DC2626;">*</span></label>
+                                                <a href="javascript:void(0);" onclick="quickAddCategoryPrompt('modalCatId');" style="font-size:11px; font-weight:700; color:#C2410C; text-decoration:none;">
+                                                    + Tambah Kategori
+                                                </a>
+                                            </div>
+                                            <select id="modalCatId" class="form-control" style="border-radius:6px; font-size:12.5px; font-weight:600;">
+                                                <option value="0">-- Pilih Kategori --</option>
+                                                <?php foreach ($categories as $cat): ?>
+                                                    <option value="<?php echo (int)$cat['cid']; ?>"><?php echo htmlspecialchars($cat['category_name']); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+
+                                        <!-- Waktu & Porsi -->
+                                        <div class="row clearfix" style="margin-bottom:12px;">
+                                            <div class="col-xs-4" style="padding-right:4px;">
+                                                <label style="font-size:11px; font-weight:700; color:#78716C;">Prep Time</label>
+                                                <input type="text" id="modalPrepTime" class="form-control" style="font-size:11.5px; border-radius:6px;" placeholder="10 mins">
+                                            </div>
+                                            <div class="col-xs-4" style="padding-left:4px; padding-right:4px;">
+                                                <label style="font-size:11px; font-weight:700; color:#78716C;">Cook Time</label>
+                                                <input type="text" id="modalCookTime" class="form-control" style="font-size:11.5px; border-radius:6px;" placeholder="18 mins">
+                                            </div>
+                                            <div class="col-xs-4" style="padding-left:4px;">
+                                                <label style="font-size:11px; font-weight:700; color:#78716C;">Servings</label>
+                                                <input type="text" id="modalServings" class="form-control" style="font-size:11.5px; border-radius:6px;" placeholder="4">
+                                            </div>
+                                        </div>
+
+                                        <!-- Summary & Nutrition Facts -->
+                                        <div class="form-group" style="margin-bottom:12px;">
+                                            <label style="font-size:12px; font-weight:700; color:#1C1917;">Ringkasan &amp; Fakta Nutrisi</label>
+                                            <textarea id="modalSummary" class="form-control" rows="3" style="font-size:12px; border-radius:6px; line-height:1.45;"></textarea>
+                                        </div>
+
+                                        <!-- Tabs Bahan & Instruksi -->
+                                        <div>
+                                            <ul class="nav nav-tabs tab-nav-right" role="tablist" style="margin-bottom:10px;">
+                                                <li role="presentation" class="active">
+                                                    <a href="#modalTabIngredients" data-toggle="tab" style="font-size:12px; font-weight:700;">
+                                                        <i class="material-icons" style="font-size:14px; vertical-align:middle;">restaurant</i> Bahan-Bahan
+                                                    </a>
+                                                </li>
+                                                <li role="presentation">
+                                                    <a href="#modalTabInstructions" data-toggle="tab" style="font-size:12px; font-weight:700;">
+                                                        <i class="material-icons" style="font-size:14px; vertical-align:middle;">format_list_numbered</i> Instruksi Memasak
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                            <div class="tab-content">
+                                                <div role="tabpanel" class="tab-pane fade in active" id="modalTabIngredients">
+                                                    <textarea id="modalIngredients" class="form-control" rows="5" style="font-size:12px; font-family:monospace; line-height:1.5; border-radius:6px;" placeholder="1 baris per bahan"></textarea>
+                                                    <small class="text-muted" style="font-size:10.5px;">* Satu baris per bahan resep.</small>
+                                                </div>
+                                                <div role="tabpanel" class="tab-pane fade" id="modalTabInstructions">
+                                                    <textarea id="modalInstructions" class="form-control" rows="5" style="font-size:12px; font-family:monospace; line-height:1.5; border-radius:6px;" placeholder="1 baris per langkah instruksi"></textarea>
+                                                    <small class="text-muted" style="font-size:10.5px;">* Satu baris per langkah instruksi memasak.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding:14px 22px; background:#F5F1EB; border-top:1px solid #E7E5E4;">
+                            <button type="button" class="btn btn-default waves-effect" data-dismiss="modal" style="border-radius:6px; font-weight:600;">Batal</button>
+                            <button type="button" id="btnSaveModalDraft" class="btn waves-effect" onclick="saveDraftFromModal();" style="background:#C2410C; color:#fff; border-radius:6px; font-weight:700;">
+                                <i class="material-icons" style="font-size:15px; vertical-align:middle;">save</i> Simpan Perubahan Draf
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         <?php elseif ($tab === 'queue'): ?>
             <!-- TAB: ANTREAN TINJAUAN -->
             <?php
@@ -1283,7 +2297,12 @@ include_once('includes/header.php');
 
     // Safe fetch helper that reads text first and handles 403/500/empty responses gracefully
     async function safeFetchJson(url, options) {
-        const res = await fetch(url, options);
+        let res;
+        try {
+            res = await fetch(url, options);
+        } catch (netErr) {
+            throw new Error('Koneksi ke server terputus (' + (netErr.message || 'NetworkError') + '). Server lokal kemungkinan sedang sibuk atau timeout. Silakan coba kembali.');
+        }
         const text = await res.text();
         let data;
         try {
@@ -1810,13 +2829,24 @@ include_once('includes/header.php');
     function toggleAiPolishPanel() {
         const container = document.getElementById('aiPolishContainer');
         const textSpan = document.getElementById('toggleAiText');
+        const btn = document.getElementById('btnToggleAiPanel');
         if (!container) return;
         if (container.style.display === 'none' || container.style.display === '') {
             container.style.display = 'block';
             if (textSpan) textSpan.innerText = 'Tutup Studio AI';
+            if (btn) {
+                btn.style.background = '#f1f5f9';
+                btn.style.color = '#475569';
+                btn.style.borderColor = '#cbd5e1';
+            }
         } else {
             container.style.display = 'none';
             if (textSpan) textSpan.innerText = 'Buka Studio AI';
+            if (btn) {
+                btn.style.background = '#e0e7ff';
+                btn.style.color = '#3730a3';
+                btn.style.borderColor = '#c7d2fe';
+            }
         }
     }
 
@@ -1849,6 +2879,7 @@ include_once('includes/header.php');
         formData.append('instructions', JSON.stringify(getParsedInstructions()));
         formData.append('style_preset', document.getElementById('aiStylePreset').value);
         formData.append('aspect_ratio', document.getElementById('aiAspectRatio').value);
+        formData.append('target_language', document.getElementById('aiLanguage')?.value || 'auto');
         formData.append('prompt_count', '1');
 
         safeFetchJson('importer.php', { method: 'POST', body: formData })
@@ -1928,12 +2959,13 @@ include_once('includes/header.php');
             summaryEl.textContent = data.summary || '';
         }
 
-        // Air Fryer Tips
+        // Chef's Pro Tip
         const tipsEl = document.getElementById('aiTipsBadge');
         if (tipsEl) {
-            if (data.airfryer_tips) {
+            const tip = data.pro_tip || data.airfryer_tips || '';
+            if (tip) {
                 tipsEl.style.display = 'block';
-                tipsEl.innerHTML = '<strong>💡 Air Fryer Pro Tip:</strong> ' + escapeHtml(data.airfryer_tips);
+                tipsEl.innerHTML = '<strong>💡 Chef\'s Pro Tip:</strong> ' + escapeHtml(tip);
             } else {
                 tipsEl.style.display = 'none';
             }
@@ -2259,6 +3291,577 @@ include_once('includes/header.php');
     function viewAiImageFull() {
         if (lastGeneratedAiImage && lastGeneratedAiImage.image_url) {
             window.open(lastGeneratedAiImage.image_url, '_blank');
+        }
+    }
+
+    /* ==========================================================================
+       BATCH ORCHESTRATOR JAVASCRIPT ENGINE
+       ========================================================================== */
+    const ALL_CATEGORIES = <?php echo safe_json_encode($categories); ?>;
+    let batchResults = [];
+    let isBatchRunning = false;
+
+    function updateUrlCounter() {
+        const textarea = document.getElementById('batchUrlsInput');
+        if (!textarea) return;
+        const lines = textarea.value.split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 0 && (l.startsWith('http://') || l.startsWith('https://')));
+        const counterEl = document.getElementById('urlCounterText');
+        if (counterEl) {
+            counterEl.innerHTML = '<strong>' + lines.length + '</strong> URL valid terdeteksi (Maks 50)';
+            if (lines.length > 50) {
+                counterEl.innerHTML += ' <span style="color:#DC2626; font-weight:700;">(Melebihi batas 50 URL)</span>';
+            }
+        }
+    }
+
+    function loadSampleCookpadUrls() {
+        const textarea = document.getElementById('batchUrlsInput');
+        if (!textarea) return;
+        textarea.value = "https://cookpad.com/id/resep/26787228\nhttps://cookpad.com/id/resep/26787110\nhttps://cookpad.com/id/resep/26786995";
+        updateUrlCounter();
+        logTerminal('[Contoh] 3 URL resep Cookpad Indonesia berhasil dimuat.', 'info');
+    }
+
+    function loadSampleUrls() {
+        const textarea = document.getElementById('batchUrlsInput');
+        if (!textarea) return;
+        textarea.value = "https://www.bbc.co.uk/food/recipes/air_fryer_chicken_thighs\nhttps://www.bbc.co.uk/food/recipes/crispy_air_fryer_chips\nhttps://www.bbc.co.uk/food/recipes/air_fryer_salmon";
+        updateUrlCounter();
+        logTerminal('[Contoh] 3 URL resep BBC Food berhasil dimuat.', 'info');
+    }
+
+    function logTerminal(message, type = 'info') {
+        const box = document.getElementById('batchTerminalBox');
+        if (!box) return;
+        const line = document.createElement('div');
+        line.className = 'terminal-line ' + type;
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        line.textContent = '[' + timeStr + '] ' + message;
+        box.appendChild(line);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function setStepPill(activeStep) {
+        for (let i = 1; i <= 4; i++) {
+            const pill = document.getElementById('stepPill' + i);
+            if (!pill) continue;
+            pill.className = 'step-item-pill';
+            if (i < activeStep) {
+                pill.classList.add('done');
+            } else if (i === activeStep) {
+                pill.classList.add('active');
+            }
+        }
+    }
+
+    async function startBatchOrchestrator() {
+        if (isBatchRunning) return;
+
+        const textarea = document.getElementById('batchUrlsInput');
+        if (!textarea) return;
+
+        const rawUrls = textarea.value.split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
+
+        const validUrls = rawUrls.filter(l => l.startsWith('http://') || l.startsWith('https://'));
+
+        if (validUrls.length === 0) {
+            alert('Silakan masukkan minimal 1 URL resep yang valid (diawali http:// atau https://).');
+            return;
+        }
+
+        if (validUrls.length > 50) {
+            alert('Maksimal URL yang dapat diproses dalam satu batch adalah 50 resep.');
+            return;
+        }
+
+        isBatchRunning = true;
+        const btnStart = document.getElementById('btnStartBatch');
+        btnStart.disabled = true;
+        btnStart.innerHTML = '<i class="material-icons" style="font-size:18px;">autorenew</i> <span>MEMPROSES BATCH...</span>';
+        textarea.disabled = true;
+
+        const progressContainer = document.getElementById('batchProgressContainer');
+        const reviewCard = document.getElementById('batchReviewCard');
+        const progressBarFill = document.getElementById('batchProgressBarFill');
+        const statusText = document.getElementById('batchProgressStatusText');
+        const percentText = document.getElementById('batchProgressPercent');
+        const tableBody = document.getElementById('batchReviewTableBody');
+
+        if (progressContainer) progressContainer.style.display = 'block';
+        if (reviewCard) reviewCard.style.display = 'block';
+
+        const defaultCatId = document.getElementById('batchDefaultCatId')?.value || '0';
+        const batchLanguage = document.getElementById('batchLanguage')?.value || 'auto';
+        const stylePreset = document.getElementById('batchStylePreset')?.value || 'Modern Fine Dining';
+        const aspectRatio = document.getElementById('batchAspectRatio')?.value || '4:3';
+        const productCode = document.getElementById('batchProductCode')?.value || 'airfry';
+
+        logTerminal('Memulai Batch Orchestrator untuk ' + validUrls.length + ' URL...', 'info');
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < validUrls.length; i++) {
+            const currentUrl = validUrls[i];
+            const currentIndex = i + 1;
+            const pct = Math.round((i / validUrls.length) * 100);
+
+            if (progressBarFill) progressBarFill.style.width = pct + '%';
+            if (percentText) percentText.textContent = pct + '%';
+            if (statusText) statusText.textContent = 'Memproses resep #' + currentIndex + ' dari ' + validUrls.length + '...';
+
+            logTerminal('(' + currentIndex + '/' + validUrls.length + ') Mengambil data resep: ' + currentUrl, 'info');
+            setStepPill(1); // Scrape
+
+            try {
+                // Step 2 & 3 dijalankan di backend via orchestrate_single_url
+                setStepPill(2); // AI Polish
+                const formData = new FormData();
+                formData.append('ajax_action', 'orchestrate_single_url');
+                formData.append('csrf_token', CSRF_TOKEN);
+                formData.append('url', currentUrl);
+                formData.append('default_cat_id', defaultCatId);
+                formData.append('style_preset', stylePreset);
+                formData.append('aspect_ratio', aspectRatio);
+                formData.append('target_language', batchLanguage);
+                formData.append('product_code', productCode);
+
+                setStepPill(3); // Photo Studio
+                const res = await safeFetchJson('importer.php', { method: 'POST', body: formData });
+
+                if (res && res.success) {
+                    successCount++;
+                    batchResults.push(res);
+                    logTerminal('✓ Resep #' + currentIndex + ' berhasil: "' + res.recipe_title + '" (Foto AI ' + (res.image_engine || 'Generated') + ' siap).', 'success');
+                    renderBatchTableRow(res);
+                    updateBatchCounterBadge();
+                } else {
+                    failCount++;
+                    const errMsg = (res && res.error) ? res.error : 'Terjadi kegagalan pemrosesan';
+                    logTerminal('✕ Resep #' + currentIndex + ' gagal: ' + errMsg, 'error');
+                    renderBatchErrorRow(currentUrl, errMsg);
+                }
+            } catch (err) {
+                failCount++;
+                logTerminal('✕ Resep #' + currentIndex + ' error jaringan: ' + err.message, 'error');
+                renderBatchErrorRow(currentUrl, err.message);
+            }
+
+            setStepPill(4); // Selesai 1 item
+            await new Promise(r => setTimeout(r, 600)); // Jeda halus antar antrean
+        }
+
+        // Selesai seluruh antrean
+        if (progressBarFill) progressBarFill.style.width = '100%';
+        if (percentText) percentText.textContent = '100%';
+        if (statusText) statusText.textContent = 'Orkestrasi batch selesai! (' + successCount + ' berhasil, ' + failCount + ' gagal)';
+
+        logTerminal('====================================================', 'info');
+        logTerminal('[Selesai] ' + successCount + ' resep berhasil diorkestrasi dan siap untuk dipublikasikan.', 'success');
+
+        isBatchRunning = false;
+        btnStart.disabled = false;
+        btnStart.innerHTML = '<i class="material-icons" style="font-size:18px;">bolt</i> <span>JALANKAN BATCH ORCHESTRATOR</span>';
+        textarea.disabled = false;
+
+        updateFloatingBatchBar();
+    }
+
+    function renderBatchTableRow(item) {
+        const tbody = document.getElementById('batchReviewTableBody');
+        if (!tbody) return;
+
+        const row = document.createElement('tr');
+        row.id = 'batchRow_' + item.import_id;
+
+        const thumbSrc = item.image_url || 'assets/images/no-image.png';
+
+        // Options kategori
+        let catOptionsHtml = '<option value="0">-- Pilih Kategori --</option>';
+        ALL_CATEGORIES.forEach(c => {
+            const isSel = (parseInt(c.cid) === parseInt(item.cat_id)) ? 'selected' : '';
+            catOptionsHtml += '<option value="' + c.cid + '" ' + isSel + '>' + escapeHtml(c.category_name) + '</option>';
+        });
+
+        const timeInfo = (item.cook_time ? item.cook_time : '-') + ' | ' + (item.servings ? item.servings + ' porsi' : '-');
+
+        row.innerHTML = `
+            <td style="text-align:center;">
+                <input type="checkbox" name="batchRowSelect" id="checkBatch_${item.import_id}" value="${item.import_id}" checked onchange="updateFloatingBatchBar();">
+                <label for="checkBatch_${item.import_id}" style="margin:0; padding:0; height:18px;"></label>
+            </td>
+            <td style="text-align:center;">
+                <img src="${thumbSrc}" class="batch-thumb-img" alt="Recipe Thumb" onclick="window.open('${thumbSrc}', '_blank');" title="Klik untuk lihat foto resolusi penuh">
+            </td>
+            <td>
+                <div style="font-weight:700; color:#1C1917; font-size:13px; line-height:1.4; margin-bottom:2px;" id="titleText_${item.import_id}">
+                    ${escapeHtml(item.recipe_title)}
+                </div>
+                <div style="font-size:11px; color:#78716C;">
+                    <a href="${escapeHtml(item.source_url)}" target="_blank" style="color:#78716C; text-decoration:none;">
+                        <i class="material-icons" style="font-size:11px; vertical-align:middle;">open_in_new</i> Sumber Web Asal
+                    </a>
+                </div>
+            </td>
+            <td>
+                <select class="inline-category-select" id="inlineCat_${item.import_id}" onchange="updateBatchCategoryInline(${item.import_id}, this);">
+                    ${catOptionsHtml}
+                </select>
+            </td>
+            <td style="font-size:11.5px; color:#44403C;">
+                <i class="material-icons" style="font-size:13px; vertical-align:middle; color:#C2410C;">timer</i> ${escapeHtml(timeInfo)}
+            </td>
+            <td style="text-align:center;" id="statusTd_${item.import_id}">
+                <span class="label" style="background:#FFF1EB; color:#C2410C; font-weight:700; border:1px solid #FED7AA; font-size:10px; border-radius:4px; padding:3px 6px;">
+                    Siap Publish
+                </span>
+            </td>
+            <td style="text-align:center;">
+                <div style="display:flex; gap:4px; justify-content:center;">
+                    <button type="button" class="btn btn-default btn-xs waves-effect" onclick="openDraftPreviewModal(${item.import_id});" title="Pratinjau / Edit Draf Lengkap" style="border-radius:4px;">
+                        <i class="material-icons" style="font-size:14px; vertical-align:middle; color:#C2410C;">edit_note</i> Edit
+                    </button>
+                    <button type="button" class="btn btn-default btn-xs waves-effect" onclick="removeBatchRow(${item.import_id});" title="Hapus dari antrean" style="border-radius:4px;">
+                        <i class="material-icons" style="font-size:14px; vertical-align:middle; color:#DC2626;">delete</i>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+    }
+
+    function renderBatchErrorRow(url, errorMsg) {
+        const tbody = document.getElementById('batchReviewTableBody');
+        if (!tbody) return;
+
+        const row = document.createElement('tr');
+        row.style.background = '#FEF2F2';
+        row.innerHTML = `
+            <td style="text-align:center;"><i class="material-icons" style="color:#DC2626; font-size:16px;">error</i></td>
+            <td style="text-align:center;">-</td>
+            <td colspan="3">
+                <div style="font-weight:700; color:#DC2626; font-size:12px;">Gagal Diproses</div>
+                <div style="font-size:11px; color:#78716C;">${escapeHtml(url)}</div>
+                <div style="font-size:11.5px; color:#991B1B; margin-top:2px;">${escapeHtml(errorMsg)}</div>
+            </td>
+            <td style="text-align:center;">
+                <span class="label label-danger">Gagal</span>
+            </td>
+            <td style="text-align:center;">
+                <button type="button" class="btn btn-default btn-xs" onclick="this.closest('tr').remove();" style="border-radius:4px;">
+                    Hapus
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+
+    function updateBatchCategoryInline(importId, selectEl) {
+        const catId = selectEl.value;
+        const origBg = selectEl.style.backgroundColor;
+        selectEl.style.backgroundColor = '#FEF3C7'; // Yellow loading
+
+        const formData = new FormData();
+        formData.append('ajax_action', 'update_draft_detail');
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('import_id', importId);
+        formData.append('cat_id', catId);
+
+        // Cari item di batchResults untuk menjaga data lain tetap utuh
+        const item = batchResults.find(b => parseInt(b.import_id) === parseInt(importId));
+        if (item) {
+            formData.append('recipe_title', item.recipe_title || '');
+            formData.append('prep_time', item.prep_time || '');
+            formData.append('cook_time', item.cook_time || '');
+            formData.append('servings', item.servings || '');
+            formData.append('summary', item.summary || '');
+            formData.append('selected_image_url', item.selected_image_url || '');
+            formData.append('ingredients', JSON.stringify(item.ingredients || []));
+            formData.append('instructions', JSON.stringify(item.instructions || []));
+        }
+
+        safeFetchJson('importer.php', { method: 'POST', body: formData })
+        .then(res => {
+            if (res && res.success) {
+                selectEl.style.backgroundColor = '#DCFCE7'; // Green success
+                if (item) item.cat_id = catId;
+                setTimeout(() => { selectEl.style.backgroundColor = ''; }, 1200);
+            } else {
+                selectEl.style.backgroundColor = '#FEE2E2'; // Red error
+                alert('Gagal memperbarui kategori: ' + (res.error || 'Terjadi kesalahan'));
+            }
+        })
+        .catch(err => {
+            selectEl.style.backgroundColor = '#FEE2E2';
+            alert('Kesalahan jaringan: ' + err.message);
+        });
+    }
+
+    function updateBatchCounterBadge() {
+        const badge = document.getElementById('batchTableCountBadge');
+        if (badge) {
+            badge.textContent = batchResults.length + ' Resep Siap';
+        }
+        updateFloatingBatchBar();
+    }
+
+    function toggleSelectAllBatch(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('input[name="batchRowSelect"]');
+        checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
+        updateFloatingBatchBar();
+    }
+
+    function updateFloatingBatchBar() {
+        const bar = document.getElementById('floatingBatchBar');
+        const countText = document.getElementById('selectedBatchCountText');
+        const btnPublish = document.getElementById('btnPublishSelected');
+        if (!bar) return;
+
+        const selected = document.querySelectorAll('input[name="batchRowSelect"]:checked');
+        if (selected.length > 0) {
+            bar.style.display = 'flex';
+            if (countText) countText.textContent = selected.length + ' Resep Terpilih';
+            if (btnPublish) btnPublish.disabled = false;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function removeBatchRow(importId) {
+        if (!confirm('Hapus draf resep ini dari antrean review?')) return;
+        const row = document.getElementById('batchRow_' + importId);
+        if (row) row.remove();
+        batchResults = batchResults.filter(b => parseInt(b.import_id) !== parseInt(importId));
+        updateBatchCounterBadge();
+    }
+
+    function openDraftPreviewModal(importId) {
+        const item = batchResults.find(b => parseInt(b.import_id) === parseInt(importId));
+        if (!item) {
+            alert('Data draf tidak ditemukan.');
+            return;
+        }
+
+        document.getElementById('modalImportId').value = item.import_id;
+        document.getElementById('modalRecipeTitle').value = item.recipe_title || '';
+        document.getElementById('modalCatId').value = item.cat_id || '0';
+        document.getElementById('modalPrepTime').value = item.prep_time || '';
+        document.getElementById('modalCookTime').value = item.cook_time || '';
+        document.getElementById('modalServings').value = item.servings || '';
+        document.getElementById('modalSummary').value = item.summary || '';
+        document.getElementById('modalSelectedImageUrl').value = item.selected_image_url || '';
+
+        const previewImg = document.getElementById('modalPreviewImg');
+        if (previewImg) {
+            previewImg.src = item.image_url || 'assets/images/no-image.png';
+        }
+
+        const promptBox = document.getElementById('modalPhotoPromptText');
+        if (promptBox) {
+            promptBox.textContent = item.image_prompt || 'Commercial food photography of ' + item.recipe_title;
+        }
+
+        // Ingredients
+        let ingText = '';
+        if (Array.isArray(item.ingredients)) {
+            ingText = item.ingredients.map(i => typeof i === 'string' ? i : (i.name || JSON.stringify(i))).join('\n');
+        } else if (typeof item.ingredients === 'string') {
+            ingText = item.ingredients;
+        }
+        document.getElementById('modalIngredients').value = ingText;
+
+        // Instructions
+        let instText = '';
+        if (Array.isArray(item.instructions)) {
+            instText = item.instructions.map(i => typeof i === 'string' ? i : (i.text || JSON.stringify(i))).join('\n');
+        } else if (typeof item.instructions === 'string') {
+            instText = item.instructions;
+        }
+        document.getElementById('modalInstructions').value = instText;
+
+        $('#recipePreviewModal').modal('show');
+    }
+
+    function saveDraftFromModal() {
+        const importId = document.getElementById('modalImportId').value;
+        const btnSave = document.getElementById('btnSaveModalDraft');
+        if (!importId) return;
+
+        const title = document.getElementById('modalRecipeTitle').value.trim();
+        const catId = document.getElementById('modalCatId').value;
+        if (!title) {
+            alert('Judul resep tidak boleh kosong.');
+            return;
+        }
+
+        btnSave.disabled = true;
+        btnSave.innerHTML = '<i class="material-icons" style="font-size:15px; vertical-align:middle;">hourglass_empty</i> Menyimpan...';
+
+        const ingredients = document.getElementById('modalIngredients').value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        const instructions = document.getElementById('modalInstructions').value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+        const formData = new FormData();
+        formData.append('ajax_action', 'update_draft_detail');
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('import_id', importId);
+        formData.append('recipe_title', title);
+        formData.append('cat_id', catId);
+        formData.append('prep_time', document.getElementById('modalPrepTime').value.trim());
+        formData.append('cook_time', document.getElementById('modalCookTime').value.trim());
+        formData.append('servings', document.getElementById('modalServings').value.trim());
+        formData.append('summary', document.getElementById('modalSummary').value.trim());
+        formData.append('selected_image_url', document.getElementById('modalSelectedImageUrl').value.trim());
+        formData.append('ingredients', JSON.stringify(ingredients));
+        formData.append('instructions', JSON.stringify(instructions));
+
+        safeFetchJson('importer.php', { method: 'POST', body: formData })
+        .then(res => {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="material-icons" style="font-size:15px; vertical-align:middle;">save</i> Simpan Perubahan Draf';
+
+            if (res && res.success) {
+                // Update batchResults
+                const item = batchResults.find(b => parseInt(b.import_id) === parseInt(importId));
+                if (item) {
+                    item.recipe_title = title;
+                    item.cat_id = catId;
+                    item.summary = document.getElementById('modalSummary').value.trim();
+                    item.prep_time = document.getElementById('modalPrepTime').value.trim();
+                    item.cook_time = document.getElementById('modalCookTime').value.trim();
+                    item.servings = document.getElementById('modalServings').value.trim();
+                    item.ingredients = ingredients;
+                    item.instructions = instructions;
+                }
+
+                // Update text di tabel review
+                const titleEl = document.getElementById('titleText_' + importId);
+                if (titleEl) titleEl.textContent = title;
+                const inlineCat = document.getElementById('inlineCat_' + importId);
+                if (inlineCat) inlineCat.value = catId;
+
+                $('#recipePreviewModal').modal('hide');
+                logTerminal('✓ Draf #' + importId + ' berhasil diperbarui dari Modal Preview.', 'success');
+            } else {
+                alert('Gagal menyimpan draf: ' + (res.error || 'Terjadi kesalahan'));
+            }
+        })
+        .catch(err => {
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="material-icons" style="font-size:15px; vertical-align:middle;">save</i> Simpan Perubahan Draf';
+            alert('Kesalahan jaringan: ' + err.message);
+        });
+    }
+
+    function quickAddCategoryPrompt(targetSelectId) {
+        const catName = prompt('Masukkan nama kategori masakan baru:');
+        if (!catName || !catName.trim()) return;
+
+        const formData = new FormData();
+        formData.append('ajax_action', 'quick_add_category');
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('category_name', catName.trim());
+        formData.append('product_code', document.getElementById('batchProductCode')?.value || 'airfry');
+
+        safeFetchJson('importer.php', { method: 'POST', body: formData })
+        .then(res => {
+            if (res && res.success) {
+                const newCid = res.cid;
+                const newName = res.category_name;
+
+                // Tambah ke ALL_CATEGORIES
+                if (!ALL_CATEGORIES.some(c => parseInt(c.cid) === parseInt(newCid))) {
+                    ALL_CATEGORIES.push({ cid: newCid, category_name: newName });
+                }
+
+                // Tambahkan option ke semua select kategori
+                const selects = document.querySelectorAll('select.inline-category-select, #batchDefaultCatId, #modalCatId');
+                selects.forEach(sel => {
+                    if (!sel.querySelector('option[value="' + newCid + '"]')) {
+                        const opt = document.createElement('option');
+                        opt.value = newCid;
+                        opt.textContent = newName;
+                        sel.appendChild(opt);
+                    }
+                });
+
+                // Pilih di target select
+                if (targetSelectId) {
+                    const targetEl = document.getElementById(targetSelectId);
+                    if (targetEl) targetEl.value = newCid;
+                }
+
+                logTerminal('✓ Kategori baru "' + newName + '" (ID #' + newCid + ') berhasil dibuat.', 'success');
+            } else {
+                alert('Gagal menambahkan kategori: ' + (res.error || 'Kesalahan'));
+            }
+        })
+        .catch(err => alert('Kesalahan jaringan: ' + err.message));
+    }
+
+    async function publishAllSelectedBatch() {
+        const selectedCheckboxes = document.querySelectorAll('input[name="batchRowSelect"]:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert('Pilih minimal satu draf resep untuk diterbitkan.');
+            return;
+        }
+
+        const draftIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        const autoPush = document.getElementById('batchAutoPushCheckbox')?.checked ? 1 : 0;
+
+        const confirmMsg = 'Terbitkan ' + draftIds.length + ' resep terpilih ke database utama Recipe Studio?' +
+            (autoPush ? '\n\n* Opsi Auto-Push AKTIF: Resep akan otomatis disinkronisasikan ke Live Hosting / Android App.' : '');
+
+        if (!confirm(confirmMsg)) return;
+
+        const btnPublish = document.getElementById('btnPublishSelected');
+        btnPublish.disabled = true;
+        btnPublish.innerHTML = '<i class="material-icons" style="font-size:18px;">autorenew</i> <span>MENERBITKAN RESEP...</span>';
+
+        logTerminal('Menerbitkan ' + draftIds.length + ' resep terpilih ke database utama...', 'info');
+
+        const formData = new FormData();
+        formData.append('ajax_action', 'bulk_publish_drafts');
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('draft_ids', JSON.stringify(draftIds));
+        formData.append('auto_push', autoPush);
+
+        try {
+            const res = await safeFetchJson('importer.php', { method: 'POST', body: formData });
+            btnPublish.disabled = false;
+            btnPublish.innerHTML = '<i class="material-icons" style="font-size:18px;">publish</i> <span>TERBITKAN SEMUA YANG DIPILIH</span>';
+
+            if (res && res.success) {
+                logTerminal('✓ ' + res.message, 'success');
+                if (res.published_list && Array.isArray(res.published_list)) {
+                    res.published_list.forEach(p => {
+                        const statusTd = document.getElementById('statusTd_' + p.import_id);
+                        if (statusTd) {
+                            statusTd.innerHTML = '<span class="label label-success" style="font-weight:700;"><i class="material-icons" style="font-size:11px; vertical-align:middle;">done</i> Diterbitkan (#' + p.recipe_id + ')</span>';
+                        }
+                        const cb = document.getElementById('checkBatch_' + p.import_id);
+                        if (cb) {
+                            cb.checked = false;
+                            cb.disabled = true;
+                        }
+                    });
+                }
+                updateFloatingBatchBar();
+                alert('✓ Sukses! ' + res.published_count + ' resep berhasil diterbitkan ke database utama Recipe Studio!\n\nAnda dapat melihatnya di menu Manage Recipes.');
+            } else {
+                alert('Gagal menerbitkan resep: ' + (res.error || (res.errors ? res.errors.join('\n') : 'Terjadi kesalahan')));
+                logTerminal('✕ Gagal menerbitkan: ' + (res.error || 'Terjadi kesalahan'), 'error');
+            }
+        } catch (err) {
+            btnPublish.disabled = false;
+            btnPublish.innerHTML = '<i class="material-icons" style="font-size:18px;">publish</i> <span>TERBITKAN SEMUA YANG DIPILIH</span>';
+            alert('Kesalahan jaringan: ' + err.message);
+            logTerminal('✕ Kesalahan jaringan saat menerbitkan: ' + err.message, 'error');
         }
     }
 </script>

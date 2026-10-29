@@ -91,9 +91,14 @@
                     <span>Video Studio</span>
                 </a>
 
-                <a href="importer.php" class="menu-item <?php if ($script == 'importer.php') echo 'active'; ?>">
+                <a href="importer.php" class="menu-item <?php if ($script == 'importer.php' && ($_GET['tab'] ?? '') !== 'batch') echo 'active'; ?>">
                     <i class="material-icons" style="color:#10b981;">cloud_download</i>
                     <span>Impor Resep</span>
+                </a>
+
+                <a href="importer.php?tab=batch" class="menu-item <?php if ($script == 'importer.php' && ($_GET['tab'] ?? '') === 'batch') echo 'active'; ?>">
+                    <i class="material-icons" style="color:#C2410C;">auto_mode</i>
+                    <span>Batch Orchestrator</span>
                 </a>
                 <?php endif; ?>
 

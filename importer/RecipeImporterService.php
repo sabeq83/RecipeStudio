@@ -5,8 +5,13 @@ namespace Importer;
 use Exception;
 use mysqli;
 use Importer\Parsers\ParserInterface;
+use Importer\Parsers\CookpadParser;
 use Importer\Parsers\BbcFoodParser;
 use Importer\Parsers\JsonLdRecipeParser;
+require_once __DIR__ . '/parsers/ParserInterface.php';
+require_once __DIR__ . '/parsers/CookpadParser.php';
+require_once __DIR__ . '/parsers/BbcFoodParser.php';
+require_once __DIR__ . '/parsers/JsonLdRecipeParser.php';
 
 class RecipeImporterService
 {
@@ -18,6 +23,7 @@ class RecipeImporterService
     {
         $this->db = $db;
         $this->parsers = [
+            new CookpadParser(),
             new BbcFoodParser(),
             new JsonLdRecipeParser(),
         ];

@@ -1,17 +1,17 @@
-# Panduan Operasional AI Agent — AirFry Studio V2
+# Panduan Operasional AI Agent — Recipe Studio V3
 
 Dokumen ini adalah aturan baku operasional (SOP) untuk Antigravity dan AI Assistant yang bekerja di repositori ini.
 
 ---
 
 ## 1. Repositori & Cabang Git
-* **Repository:** `https://github.com/sabeq83/airfryer.git`
+* **Repository:** `https://github.com/sabeq83/RecipeStudio.git`
 * **Default Branch:** `main`
 * **Host Target Remote:** Server Mac Mini (`macmini` / `100.95.245.55`)
-* **Path Remote Server:** `/Users/masbenu/airfry_studio_v2/` (Active symlink: `current/`)
+* **Path Remote Server:** `/Users/masbenu/recipe_studio/` (Active symlink: `current/`)
 * **Port Service:**
-  * Local Dev: `http://127.0.0.1:8088/`
-  * Mac Mini Studio: `http://100.95.245.55:8085/` (PM2 service: `airfry-studio-v2`)
+  * Local Dev: `http://127.0.0.1:8090/`
+  * Mac Mini Studio: `http://100.95.245.55:8090/` (PM2 service: `recipe-studio`)
 
 ---
 
@@ -36,7 +36,14 @@ npm run release-non-interactive -- --type patch --title "Judul Rilis Singkat" --
 ---
 
 ## 3. SOP Deployment ke Mac Mini (Git-Based Atomic Deployment)
-Setelah perubahan di-push ke GitHub dan diverifikasi, lakukan deployment atomik ke server Mac Mini dengan perintah:
+> **PENTING:** Deployment ke server Mac Mini **HANYA** boleh dijalankan jika pengguna (User) telah menguji tampilan/fungsionalitas secara lokal dan memberikan instruksi eksplisit untuk melakukan deployment. Agen **DILARANG** melakukan deployment otomatis tanpa persetujuan pengguna.
+
+* **Inisialisasi Awal Server (Jika belum pernah di-setup):**
+```bash
+npm run deploy:macmini:bootstrap
+```
+
+* **Deployment Atomik (Setelah persetujuan User):**
 ```bash
 npm run deploy:macmini
 ```

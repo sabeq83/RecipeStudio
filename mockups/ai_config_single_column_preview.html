@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup Proposal: Single Column AI Config & Multi-App Sync Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #F8FAFC;
+            --surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-primary: #0284C7;
+            --brand-primary-hover: #0369A1;
+            --brand-teal: #0D9488;
+            --brand-teal-soft: #CCFBF1;
+            --brand-orange: #EA580C;
+            --brand-orange-soft: #FFEDD5;
+            --brand-purple: #7C3AED;
+            --brand-purple-soft: #EDE9FE;
+            --brand-green: #16A34A;
+            --brand-green-soft: #DCFCE7;
+            --danger: #DC2626;
+            --danger-soft: #FEE2E2;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+            --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+
+        /* Banner Review Info */
+        .proposal-banner {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            color: #FFFFFF;
+            border-radius: var(--radius-lg);
+            padding: 24px 28px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .proposal-title h1 {
+            font-size: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .proposal-title p {
+            color: #94A3B8;
+            font-size: 13.5px;
+            max-width: 650px;
+        }
+
+        .proposal-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill-badge {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill-badge.cyan { background: rgba(14, 165, 233, 0.2); color: #38BDF8; border: 1px solid rgba(14, 165, 233, 0.3); }
+        .pill-badge.green { background: rgba(34, 197, 94, 0.2); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .pill-badge.amber { background: rgba(245, 158, 11, 0.2); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        /* Summary Metric Row */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .metric-card {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .metric-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .metric-icon.teal { background: var(--brand-teal-soft); color: var(--brand-teal); }
+        .metric-icon.purple { background: var(--brand-purple-soft); color: var(--brand-purple); }
+        .metric-icon.orange { background: var(--brand-orange-soft); color: var(--brand-orange); }
+
+        .metric-val {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .metric-lbl {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* Single Column Config Cards */
+        .config-card {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-card);
+            transition: all 0.2s ease;
+        }
+
+        .config-card.highlight {
+            border: 2px solid var(--brand-teal);
+            position: relative;
+        }
+
+        .highlight-tag {
+            position: absolute;
+            top: -12px;
+            right: 24px;
+            background: var(--brand-teal);
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 3px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(13, 148, 136, 0.3);
+        }
+
+        .config-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-icon-badge {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .card-title h2 {
+            font-size: 16.5px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title p {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--brand-primary);
+            color: #FFFFFF;
+        }
+        .btn-primary:hover { background: var(--brand-primary-hover); }
+
+        .btn-teal {
+            background: var(--brand-teal);
+            color: #FFFFFF;
+        }
+        .btn-teal:hover { background: #0F766E; }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+        }
+        .btn-outline:hover {
+            background: #F1F5F9;
+            border-color: #CBD5E1;
+        }
+
+        .btn-outline-teal {
+            background: transparent;
+            border: 1px solid var(--brand-teal);
+            color: var(--brand-teal);
+        }
+        .btn-outline-teal:hover {
+            background: var(--brand-teal-soft);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 11.5px;
+        }
+
+        .btn-icon-danger {
+            color: var(--danger);
+            background: transparent;
+            border: 1px solid transparent;
+            padding: 5px;
+            border-radius: 6px;
+        }
+        .btn-icon-danger:hover {
+            background: var(--danger-soft);
+        }
+
+        /* Table Apps */
+        .app-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+        }
+
+        .app-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .app-table th {
+            background: #F8FAFC;
+            color: #475569;
+            font-weight: 700;
+            font-size: 11.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .app-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: middle;
+        }
+
+        .app-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .app-table tr:hover td {
+            background: #F8FAFC;
+        }
+
+        .app-tag {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .app-tag.airfry { background: #FEF3C7; color: #D97706; }
+        .app-tag.nusasaji { background: #DCFCE7; color: #16A34A; }
+        .app-tag.protein { background: #EDE9FE; color: #7C3AED; }
+        .app-tag.custom { background: #E0F2FE; color: #0284C7; }
+
+        .app-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .app-status.active { color: var(--brand-green); }
+        .app-status.inactive { color: var(--text-muted); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .status-dot.active { background: var(--brand-green); box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2); }
+        .status-dot.inactive { background: #94A3B8; }
+
+        .token-masked {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #475569;
+            background: #F1F5F9;
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Demo Batch Orchestrator Integration Box */
+        .integration-preview-box {
+            background: linear-gradient(to right, #FFF7ED, #FEF3C7);
+            border: 1.5px dashed #F97316;
+            border-radius: var(--radius-md);
+            padding: 18px 22px;
+            margin-top: 20px;
+        }
+
+        .integration-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #C2410C;
+            margin-bottom: 8px;
+        }
+
+        .integration-desc {
+            font-size: 12.5px;
+            color: #7C2D12;
+            margin-bottom: 14px;
+        }
+
+        .orchestrator-sample-row {
+            background: #FFFFFF;
+            border: 1px solid #FED7AA;
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .orchestrator-sample-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #431407;
+            white-space: nowrap;
+        }
+
+        .sample-select {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #FB923C;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1E293B;
+            background: #FFF;
+            min-width: 320px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-box {
+            background: #FFFFFF;
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 540px;
+            box-shadow: var(--shadow-modal);
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-head {
+            padding: 18px 24px;
+            background: #F8FAFC;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-head h3 {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .form-control {
+            font-family: inherit;
+            font-size: 13px;
+            padding: 9px 12px;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            background: #FFFFFF;
+            color: var(--text-main);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--brand-teal);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        }
+
+        .modal-foot {
+            padding: 16px 24px;
+            background: #F8FAFC;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Mockup Callout Tips */
+        .callout-box {
+            background: #EFF6FF;
+            border-left: 4px solid #3B82F6;
+            padding: 12px 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 12.5px;
+            color: #1E40AF;
+            margin-top: 12px;
+        }
+
+        .collapsed-section-mock {
+            opacity: 0.7;
+            padding: 14px 20px;
+            background: #F8FAFC;
+            border: 1px dashed var(--border-subtle);
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- PROPOSAL BANNER -->
+        <div class="proposal-banner">
+            <div class="proposal-title">
+                <h1>
+                    <i class="material-icons" style="font-size:24px; color:#38BDF8;">auto_stories</i>
+                    Mockup Usulan: Single-Column Layout & Multi-App Live Sync
+                </h1>
+                <p>
+                    Usulan arsitektur untuk perbaikan halaman <code>ai-config.php</code> menjadi 1 kolom penuh yang linear dan rapi, dilengkapi manajer multi-aplikasi target hosting yang otomatis terhubung ke dropdown Batch Orchestrator di <code>importer.php</code>.
+                </p>
+            </div>
+            <div class="proposal-badges">
+                <span class="pill-badge cyan"><i class="material-icons" style="font-size:14px;">view_agenda</i> Single Column</span>
+                <span class="pill-badge green"><i class="material-icons" style="font-size:14px;">cloud_sync</i> Multi-App Target</span>
+                <span class="pill-badge amber"><i class="material-icons" style="font-size:14px;">dynamic_feed</i> Auto-Sync Dropdown</span>
+            </div>
+        </div>
+
+        <!-- METRICS ROW (Linear Header) -->
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-icon teal">
+                    <i class="material-icons">vpn_key</i>
+                </div>
+                <div>
+                    <div class="metric-val">12 Kunci Aktif</div>
+                    <div class="metric-lbl">Gemini Pool Capacity (18.000 RPD)</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon purple">
+                    <i class="material-icons">apps</i>
+                </div>
+                <div>
+                    <div class="metric-val" id="stat-total-apps">3 Aplikasi Target</div>
+                    <div class="metric-lbl">Live Web Hosting Endpoints</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon orange">
+                    <i class="material-icons">swap_calls</i>
+                </div>
+                <div>
+                    <div class="metric-val">Single Column</div>
+                    <div class="metric-lbl">Tata Letak Terstruktur & Fokus</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 1: POOL GEMINI (Single Column Preview) -->
+        <div class="collapsed-section-mock">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="material-icons" style="color:var(--brand-primary);">dns</i>
+                <strong>1. Pool API Key Google Gemini (Multi-Key Failover)</strong>
+                <span style="font-size:11px; background:#E0F2FE; color:#0284C7; font-weight:700; padding:2px 8px; border-radius:10px;">12 Kunci Siap</span>
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);"><i class="material-icons" style="font-size:14px; vertical-align:middle;">expand_more</i> Full Width Single Column</span>
+        </div>
+
+        <!-- SECTION 2: CASCADE RETRY (Single Column Preview) -->
+        <div class="collapsed-section-mock">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="material-icons" style="color:var(--brand-purple);">alt_route</i>
+                <strong>2. Rantai Eksekusi Berjenjang (Waterfall Fallback & Retry)</strong>
+                <span style="font-size:11px; background:#EDE9FE; color:#7C3AED; font-weight:700; padding:2px 8px; border-radius:10px;">gemini-2.5-flash Utama</span>
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);"><i class="material-icons" style="font-size:14px; vertical-align:middle;">expand_more</i> Full Width Single Column</span>
+        </div>
+
+        <!-- SECTION 3: G-LABS LOCAL GPU (Single Column Preview) -->
+        <div class="collapsed-section-mock">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="material-icons" style="color:var(--brand-orange);">memory</i>
+                <strong>3. G-Labs Local GPU Image Renderer</strong>
+                <span style="font-size:11px; background:#FFEDD5; color:#EA580C; font-weight:700; padding:2px 8px; border-radius:10px;">Port 8765 Connected</span>
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);"><i class="material-icons" style="font-size:14px; vertical-align:middle;">expand_more</i> Full Width Single Column</span>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SECTION 4: SINKRONISASI KE WEB HOSTING LIVE (THE CORE FOCUS OF REQUEST) -->
+        <!-- ========================================================================= -->
+        <section class="config-card highlight" id="section-sync-apps">
+            <div class="highlight-tag">Fokus Perbaikan #2 & #3</div>
+
+            <div class="config-card-header">
+                <div class="card-header-left">
+                    <div class="card-icon-badge" style="background:var(--brand-teal-soft); color:var(--brand-teal);">
+                        <i class="material-icons">cloud_sync</i>
+                    </div>
+                    <div class="card-title">
+                        <h2>
+                            4. Sinkronisasi ke Web Hosting Live (Multi-App Manager)
+                            <span style="font-size:11px; background:#CCFBF1; color:#0D9488; font-weight:700; padding:2px 8px; border-radius:10px;">Multi-Target Active</span>
+                        </h2>
+                        <p>Kelola daftar endpoint aplikasi target penerima sinkronisasi otomatis (1-Click Push dari Mac Mini ke Web Hosting cPanel/VPS).</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button type="button" class="btn btn-outline-teal" onclick="testAllAppsPing()">
+                        <i class="material-icons" style="font-size:15px;">network_check</i> Uji Semua Endpoint
+                    </button>
+                    <button type="button" class="btn btn-teal" onclick="openAddAppModal()">
+                        <i class="material-icons" style="font-size:16px;">add</i> Tambah Aplikasi Lain
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabel Daftar Aplikasi Target -->
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr>
+                            <th style="width:220px;">Aplikasi & Kode Produk</th>
+                            <th>Target URL Receiver (API Endpoint)</th>
+                            <th style="width:190px;">Secret Bearer Token</th>
+                            <th style="width:120px;">Status Sinkron</th>
+                            <th style="width:140px; text-align:right;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="app-list-tbody">
+                        <!-- App 1: Airfryer -->
+                        <tr id="app-row-1">
+                            <td>
+                                <strong style="display:block; font-size:13.5px; color:#1E293B;">Air Fryer Recipes</strong>
+                                <span class="app-tag airfry">airfry</span>
+                            </td>
+                            <td>
+                                <code style="font-size:12px; color:#0F766E;">https://airfryeats.com/app/api_sync_recipe.php</code>
+                                <div style="font-size:11px; color:#64748B; margin-top:2px;">Terakhir sinkron: 12 menit lalu</div>
+                            </td>
+                            <td>
+                                <span class="token-masked">
+                                    <span>••••••••••••3a2b1</span>
+                                    <i class="material-icons" style="font-size:14px; cursor:pointer;" title="Salin Token">content_copy</i>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="app-status active">
+                                    <span class="status-dot active"></span>
+                                    <span>Aktif</span>
+                                </div>
+                            </td>
+                            <td style="text-align:right;">
+                                <button class="btn btn-outline btn-sm" onclick="testSinglePing('Air Fryer Recipes')" title="Uji Koneksi">
+                                    <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="editApp('airfry', 'Air Fryer Recipes', 'https://airfryeats.com/app/api_sync_recipe.php')" title="Edit URL/Token">
+                                    <i class="material-icons" style="font-size:14px;">edit</i>
+                                </button>
+                                <button class="btn-icon-danger" onclick="deleteApp(1, 'Air Fryer Recipes')" title="Hapus">
+                                    <i class="material-icons" style="font-size:16px;">delete_outline</i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- App 2: Nusa Saji -->
+                        <tr id="app-row-2">
+                            <td>
+                                <strong style="display:block; font-size:13.5px; color:#1E293B;">Nusa Saji (Resep Tradisional)</strong>
+                                <span class="app-tag nusasaji">nusasaji</span>
+                            </td>
+                            <td>
+                                <code style="font-size:12px; color:#0F766E;">https://nusasaji.com/api_sync_recipe.php</code>
+                                <div style="font-size:11px; color:#64748B; margin-top:2px;">Terakhir sinkron: Kemarin 19:40</div>
+                            </td>
+                            <td>
+                                <span class="token-masked">
+                                    <span>••••••••••••2b1c2</span>
+                                    <i class="material-icons" style="font-size:14px; cursor:pointer;" title="Salin Token">content_copy</i>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="app-status active">
+                                    <span class="status-dot active"></span>
+                                    <span>Aktif</span>
+                                </div>
+                            </td>
+                            <td style="text-align:right;">
+                                <button class="btn btn-outline btn-sm" onclick="testSinglePing('Nusa Saji')" title="Uji Koneksi">
+                                    <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="editApp('nusasaji', 'Nusa Saji', 'https://nusasaji.com/api_sync_recipe.php')" title="Edit URL/Token">
+                                    <i class="material-icons" style="font-size:14px;">edit</i>
+                                </button>
+                                <button class="btn-icon-danger" onclick="deleteApp(2, 'Nusa Saji')" title="Hapus">
+                                    <i class="material-icons" style="font-size:16px;">delete_outline</i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- App 3: ProteinPrep -->
+                        <tr id="app-row-3">
+                            <td>
+                                <strong style="display:block; font-size:13.5px; color:#1E293B;">Protein Prep (Fitness Food)</strong>
+                                <span class="app-tag protein">protein</span>
+                            </td>
+                            <td>
+                                <code style="font-size:12px; color:#0F766E;">https://proteinprep.app/api_sync_recipe.php</code>
+                                <div style="font-size:11px; color:#64748B; margin-top:2px;">Terakhir sinkron: Belum pernah</div>
+                            </td>
+                            <td>
+                                <span class="token-masked">
+                                    <span>••••••••••••1c2d3</span>
+                                    <i class="material-icons" style="font-size:14px; cursor:pointer;" title="Salin Token">content_copy</i>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="app-status active">
+                                    <span class="status-dot active"></span>
+                                    <span>Aktif</span>
+                                </div>
+                            </td>
+                            <td style="text-align:right;">
+                                <button class="btn btn-outline btn-sm" onclick="testSinglePing('Protein Prep')" title="Uji Koneksi">
+                                    <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                                </button>
+                                <button class="btn btn-outline btn-sm" onclick="editApp('protein', 'Protein Prep', 'https://proteinprep.app/api_sync_recipe.php')" title="Edit URL/Token">
+                                    <i class="material-icons" style="font-size:14px;">edit</i>
+                                </button>
+                                <button class="btn-icon-danger" onclick="deleteApp(3, 'Protein Prep')" title="Hapus">
+                                    <i class="material-icons" style="font-size:16px;">delete_outline</i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Interaktif Live Demo: Terhubung ke Batch Orchestrator (Poin 3) -->
+            <div class="integration-preview-box">
+                <div class="integration-header">
+                    <i class="material-icons" style="font-size:20px;">sync_alt</i>
+                    <span>Verifikasi Interaktif: Dropdown Otomatis di Batch Orchestrator (importer.php)</span>
+                </div>
+                <div class="integration-desc">
+                    Setiap kali Anda menambah, mengedit, atau menonaktifkan app di atas, dropdown <strong>"Aplikasi Target"</strong> pada Batch Orchestrator di bawah ini akan <strong>secara otomatis terisi dan selalu sinkron</strong> tanpa perlu edit kode!
+                </div>
+                <div class="orchestrator-sample-row">
+                    <span class="orchestrator-sample-label">Aplikasi Target (Batch Orchestrator):</span>
+                    <select id="mockBatchTargetDropdown" class="sample-select">
+                        <option value="airfry">Air Fryer Recipes (airfry)</option>
+                        <option value="nusasaji">Nusa Saji - Resep Tradisional (nusasaji)</option>
+                        <option value="protein">Protein Prep - Fitness Food (protein)</option>
+                    </select>
+                    <span style="font-size:11.5px; color:#C2410C; font-weight:600; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="material-icons" style="font-size:16px;">check_circle</i> Terkoneksi ke <code>tbl_sync_destinations</code>
+                    </span>
+                </div>
+            </div>
+
+            <div class="callout-box">
+                <strong>💡 Catatan Keamanan & Otomasi:</strong>
+                Saat batch publish dieksekusi dengan opsi <em>"Push ke Web Hosting Live"</em>, sistem akan membaca parameter produk yang dipilih dan secara otomatis mengirim JSON resep + multipart foto ke endpoint receiver tujuan dengan Bearer token yang sesuai.
+            </div>
+        </section>
+
+        <!-- SECTION 5: CLOUDFLARE R2 (Single Column Preview) -->
+        <div class="collapsed-section-mock">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="material-icons" style="color:var(--brand-orange);">cloud_upload</i>
+                <strong>5. Cloudflare R2 Object Storage (Penyimpanan Video CDN)</strong>
+                <span style="font-size:11px; background:#FFEDD5; color:#EA580C; font-weight:700; padding:2px 8px; border-radius:10px;">Zero-Egress Enabled</span>
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);"><i class="material-icons" style="font-size:14px; vertical-align:middle;">expand_more</i> Full Width Single Column</span>
+        </div>
+
+        <!-- SECTION 6: MINIMAX TTS (Single Column Preview) -->
+        <div class="collapsed-section-mock">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="material-icons" style="color:var(--brand-green);">record_voice_over</i>
+                <strong>6. MiniMax AI Voiceover Engine (Text-to-Speech)</strong>
+                <span style="font-size:11px; background:#DCFCE7; color:#16A34A; font-weight:700; padding:2px 8px; border-radius:10px;">T2A V2 Active</span>
+            </div>
+            <span style="font-size:12px; color:var(--text-muted);"><i class="material-icons" style="font-size:14px; vertical-align:middle;">expand_more</i> Full Width Single Column</span>
+        </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL TAMBAH APLIKASI LAIN -->
+    <!-- ========================================================================= -->
+    <div class="modal-overlay" id="addAppModal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>
+                    <i class="material-icons" style="color:var(--brand-teal);">add_circle</i>
+                    Tambah Aplikasi Target Sinkronisasi
+                </h3>
+                <button type="button" onclick="closeAddAppModal()" style="background:none; border:none; cursor:pointer; color:#64748B;">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">
+                        <span>Nama / Label Aplikasi:</span>
+                        <span style="color:var(--brand-teal); font-weight:normal;">Contoh: Healthy Bowl App</span>
+                    </label>
+                    <input type="text" id="modalAppName" class="form-control" placeholder="Nama aplikasi target...">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <span>Kode Produk (Slug Unik):</span>
+                        <span style="color:#64748B; font-weight:normal;">Huruf kecil tanpa spasi</span>
+                    </label>
+                    <input type="text" id="modalProductCode" class="form-control" placeholder="misal: healthybowl, saladstudio" style="font-family:'JetBrains Mono', monospace;">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <span>Target Endpoint URL:</span>
+                        <span style="color:#64748B; font-weight:normal;">File receiver di hosting</span>
+                    </label>
+                    <input type="url" id="modalTargetUrl" class="form-control" placeholder="https://domain-live.com/api_sync_recipe.php" style="font-family:'JetBrains Mono', monospace; font-size:12px;">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <span>Secret Bearer Token:</span>
+                        <span style="color:var(--brand-teal); cursor:pointer; font-weight:600;" onclick="generateModalToken()">+ Generate Acak</span>
+                    </label>
+                    <input type="text" id="modalSecretToken" class="form-control" placeholder="Token rahasia sinkronisasi..." style="font-family:'JetBrains Mono', monospace; font-size:12px;">
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                    <input type="checkbox" id="modalIsActive" checked style="accent-color:var(--brand-teal); width:16px; height:16px; cursor:pointer;">
+                    <label for="modalIsActive" style="font-size:12.5px; font-weight:600; color:#334155; cursor:pointer; margin:0;">
+                        Aktifkan aplikasi ini untuk sinkronisasi otomatis
+                    </label>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-outline" onclick="closeAddAppModal()">Batal</button>
+                <button type="button" class="btn btn-teal" onclick="submitNewApp()">
+                    <i class="material-icons" style="font-size:15px;">save</i> Simpan Aplikasi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERACTIVE SCRIPT FOR DEMO PREVIEW -->
+    <script>
+        function openAddAppModal() {
+            document.getElementById('addAppModal').style.display = 'flex';
+            document.getElementById('modalAppName').focus();
+        }
+
+        function closeAddAppModal() {
+            document.getElementById('addAppModal').style.display = 'none';
+        }
+
+        function generateModalToken() {
+            const rand = 'sync_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+            document.getElementById('modalSecretToken').value = rand;
+        }
+
+        function submitNewApp() {
+            const name = document.getElementById('modalAppName').value.trim();
+            const code = document.getElementById('modalProductCode').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+            const url = document.getElementById('modalTargetUrl').value.trim();
+            const token = document.getElementById('modalSecretToken').value.trim();
+
+            if (!name || !code || !url || !token) {
+                alert('Semua kolom formulir wajib diisi!');
+                return;
+            }
+
+            // Tambahkan baris baru ke tabel
+            const tbody = document.getElementById('app-list-tbody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>
+                    <strong style="display:block; font-size:13.5px; color:#1E293B;">${name}</strong>
+                    <span class="app-tag custom">${code}</span>
+                </td>
+                <td>
+                    <code style="font-size:12px; color:#0F766E;">${url}</code>
+                    <div style="font-size:11px; color:#64748B; margin-top:2px;">Baru ditambahkan (Belum sinkron)</div>
+                </td>
+                <td>
+                    <span class="token-masked">
+                        <span>••••••••••••${token.slice(-4)}</span>
+                        <i class="material-icons" style="font-size:14px; cursor:pointer;" title="Salin Token">content_copy</i>
+                    </span>
+                </td>
+                <td>
+                    <div class="app-status active">
+                        <span class="status-dot active"></span>
+                        <span>Aktif</span>
+                    </div>
+                </td>
+                <td style="text-align:right;">
+                    <button class="btn btn-outline btn-sm" onclick="testSinglePing('${name}')" title="Uji Koneksi">
+                        <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                    </button>
+                    <button class="btn btn-outline btn-sm" onclick="editApp('${code}', '${name}', '${url}')" title="Edit">
+                        <i class="material-icons" style="font-size:14px;">edit</i>
+                    </button>
+                    <button class="btn-icon-danger" onclick="this.closest('tr').remove(); updateDropdownOptions();" title="Hapus">
+                        <i class="material-icons" style="font-size:16px;">delete_outline</i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(newRow);
+
+            // Update Dropdown Batch Orchestrator Preview secara instan
+            const dropdown = document.getElementById('mockBatchTargetDropdown');
+            const newOpt = document.createElement('option');
+            newOpt.value = code;
+            newOpt.textContent = `${name} (${code})`;
+            newOpt.selected = true;
+            dropdown.appendChild(newOpt);
+
+            // Update stats
+            const total = tbody.children.length;
+            document.getElementById('stat-total-apps').textContent = total + ' Aplikasi Target';
+
+            closeAddAppModal();
+            alert(`Sukses! Aplikasi "${name}" berhasil didaftarkan dan langsung otomatis muncul di dropdown Batch Orchestrator!`);
+        }
+
+        function testSinglePing(appName) {
+            alert(`[Uji Koneksi] Melakukan Ping HTTP POST ke endpoint "${appName}"...\nStatus: HTTP 200 OK (Receiver Siap Menerima Sinkronisasi Resep)`);
+        }
+
+        function testAllAppsPing() {
+            alert(`[Uji Semua Endpoint]\n1. Air Fryer Recipes: ONLINE (200 OK - 85ms)\n2. Nusa Saji: ONLINE (200 OK - 110ms)\n3. Protein Prep: ONLINE (200 OK - 92ms)\n\nSeluruh receiver live hosting siap menerima data.`);
+        }
+
+        function editApp(code, name, url) {
+            const newUrl = prompt(`Ubah URL Endpoint untuk ${name}:`, url);
+            if (newUrl) {
+                alert(`URL untuk ${name} berhasil diperbarui menjadi:\n${newUrl}`);
+            }
+        }
+
+        function deleteApp(id, name) {
+            if (confirm(`Yakin ingin menghapus aplikasi "${name}" dari daftar target sinkronisasi?`)) {
+                const row = document.getElementById('app-row-' + id);
+                if (row) row.remove();
+                alert(`Aplikasi "${name}" telah dihapus.`);
+            }
+        }
+    </script>
+</body>
+</html>

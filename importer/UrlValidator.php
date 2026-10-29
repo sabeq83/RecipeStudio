@@ -148,7 +148,7 @@ class UrlValidator
         if (!self::isDomainSupported($url)) {
             return [
                 'valid' => false,
-                'error' => 'Domain "' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8') . '" belum didukung. Saat ini hanya resep BBC Food (bbc.co.uk / bbc.com) yang didukung.',
+                'error' => 'Domain "' . htmlspecialchars($host, ENT_QUOTES, 'UTF-8') . '" belum didukung. Masukkan URL resep dari Cookpad (cookpad.com), BBC Food (bbc.co.uk / bbc.com), atau portal resep berstandar Schema.org.',
                 'ip' => null
             ];
         }

@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Recipe Orchestrator Mockup - Recipe Studio</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+        /* ==========================================================================
+           NORDIC WARM DESIGN SYSTEM (Recipe Studio V3)
+           ========================================================================== */
+        :root {
+            --rs-terracotta: #C2410C;
+            --rs-terracotta-dark: #9A3412;
+            --rs-terracotta-soft: #FFF1EB;
+            --rs-terracotta-glow: rgba(194, 65, 12, 0.22);
+            --rs-espresso: #1C1917;
+            --rs-espresso-border: #292524;
+            --rs-sand-bg: #F5F1EB;
+            --rs-surface: #FFFFFF;
+            --rs-surface-border: #E7E5E4;
+            --rs-sidebar-bg: #FAF8F5;
+            --rs-sidebar-user: #292524;
+            --rs-text-heading: #1C1917;
+            --rs-text-body: #44403C;
+            --rs-text-muted: #78716C;
+            --rs-success: #15803D;
+            --rs-success-soft: #DCFCE7;
+            --rs-warning: #B45309;
+            --rs-warning-soft: #FEF3C7;
+            --rs-ai-indigo: #78350F;
+            --rs-ai-indigo-soft: #FEF3C7;
+            --rs-shadow-card: 0 4px 18px -2px rgba(41, 37, 36, 0.05);
+            --rs-shadow-hover: 0 10px 24px -4px rgba(194, 65, 12, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--rs-sand-bg);
+            color: var(--rs-text-body);
+            min-height: 100vh;
+        }
+
+        /* TOP NAVIGATOR (Nordic Espresso) */
+        .top-navbar {
+            height: 50px;
+            background: var(--rs-espresso);
+            border-bottom: 1px solid var(--rs-espresso-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--rs-terracotta);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 2px 8px var(--rs-terracotta-glow);
+        }
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: #FFFFFF;
+        }
+        .brand-tag {
+            background: rgba(194, 65, 12, 0.2);
+            color: #FDBA74;
+            border: 1px solid rgba(194, 65, 12, 0.4);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        /* Product Switcher */
+        .product-switcher {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(41,37,36,0.7);
+            padding: 4px 8px;
+            border-radius: 20px;
+            border: 1px solid #44403C;
+            margin-left: 14px;
+        }
+        .product-pill {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            color: #A8A29E;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .product-pill.active {
+            background: #F59E0B;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .nav-tabs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .nav-tab-btn {
+            color: #A8A29E;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .nav-tab-btn:hover {
+            color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .nav-tab-btn.active {
+            color: #FFFFFF;
+            background: var(--rs-terracotta);
+            font-weight: 700;
+        }
+
+        /* SIDEBAR (Nordic Oat) */
+        .layout-wrapper {
+            display: flex;
+            margin-top: 50px;
+            min-height: calc(100vh - 50px);
+        }
+        .sidebar {
+            width: 250px;
+            background: var(--rs-sidebar-bg);
+            border-right: 1px solid var(--rs-surface-border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 50px;
+            bottom: 0;
+            left: 0;
+            overflow-y: auto;
+        }
+        .sidebar-user {
+            padding: 14px 18px;
+            background: var(--rs-sidebar-user);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px solid var(--rs-terracotta);
+        }
+        .sidebar-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--rs-terracotta), #78350F);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+        }
+        .user-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #FAF8F5;
+        }
+        .user-role {
+            font-size: 11px;
+            color: #A8A29E;
+        }
+
+        .sidebar-menu {
+            padding: 14px 10px;
+        }
+        .menu-title {
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--rs-text-muted);
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            padding: 6px 12px;
+        }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            color: #57534E;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #F5EFEB;
+            color: var(--rs-terracotta);
+        }
+        .sidebar-link.active {
+            background: #F5EFEB;
+            color: var(--rs-terracotta);
+            font-weight: 700;
+        }
+        .sidebar-link i {
+            font-size: 18px;
+        }
+
+        /* MAIN CONTENT AREA */
+        .main-container {
+            margin-left: 250px;
+            flex: 1;
+            padding: 28px 36px 90px 36px;
+            max-width: calc(100vw - 250px);
+        }
+
+        /* PAGE HEADER */
+        .header-section {
+            margin-bottom: 24px;
+        }
+        .page-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--rs-terracotta-soft);
+            color: var(--rs-terracotta-dark);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--rs-text-heading);
+            letter-spacing: -0.4px;
+        }
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--rs-text-muted);
+            margin-top: 4px;
+        }
+
+        /* TABS INSIDE IMPORTER */
+        .importer-mode-tabs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 22px;
+            border-bottom: 1px solid var(--rs-surface-border);
+            padding-bottom: 12px;
+        }
+        .importer-tab-pill {
+            background: var(--rs-surface);
+            border: 1px solid var(--rs-surface-border);
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--rs-text-muted);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .importer-tab-pill.active {
+            background: var(--rs-terracotta);
+            color: white;
+            border-color: var(--rs-terracotta);
+            box-shadow: 0 4px 12px var(--rs-terracotta-glow);
+        }
+
+        /* GRID: 2 COLUMNS (INPUT & CONFIG) */
+        .orchestrator-input-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 22px;
+            margin-bottom: 28px;
+        }
+        .card-panel {
+            background: var(--rs-surface);
+            border: 1px solid var(--rs-surface-border);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: var(--rs-shadow-card);
+        }
+        .panel-heading {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--rs-text-heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        /* TEXTAREA STYLING */
+        .url-textarea {
+            width: 100%;
+            height: 180px;
+            background: var(--rs-sand-bg);
+            border: 1px solid #D6D3D1;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: var(--rs-text-body);
+            resize: vertical;
+            line-height: 1.6;
+        }
+        .url-textarea:focus {
+            outline: none;
+            border-color: var(--rs-terracotta);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.15);
+        }
+        .textarea-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--rs-text-muted);
+        }
+
+        /* CONFIG FORM FIELDS */
+        .form-group-item {
+            margin-bottom: 14px;
+        }
+        .form-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--rs-text-heading);
+            margin-bottom: 6px;
+        }
+        .select-custom {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid #D6D3D1;
+            background: #FFFFFF;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--rs-text-body);
+        }
+        .select-custom:focus {
+            outline: none;
+            border-color: var(--rs-terracotta);
+        }
+
+        /* PHOTO MANDATORY NOTICE */
+        .notice-box {
+            background: var(--rs-terracotta-soft);
+            border: 1px solid #FED7AA;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 11.5px;
+            color: #9A3412;
+            line-height: 1.4;
+        }
+
+        /* START RUNNER BUTTON */
+        .btn-start-orchestrator {
+            background: linear-gradient(135deg, var(--rs-terracotta) 0%, var(--rs-terracotta-dark) 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin-top: 18px;
+            box-shadow: 0 4px 14px var(--rs-terracotta-glow);
+            transition: all 0.2s ease;
+        }
+        .btn-start-orchestrator:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px var(--rs-terracotta-glow);
+        }
+
+        /* LIVE PROGRESS MONITOR */
+        #progressMonitor {
+            display: none;
+            margin-bottom: 28px;
+        }
+        .progress-header-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .progress-bar-track {
+            height: 10px;
+            background: #E7E5E4;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--rs-terracotta) 0%, #EA580C 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        /* QUEUE ITEM CARD */
+        .queue-items-container {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .queue-item-card {
+            background: var(--rs-sand-bg);
+            border: 1px solid var(--rs-surface-border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .queue-item-card.processing {
+            background: #FFF7ED;
+            border-color: #FDBA74;
+            box-shadow: 0 2px 8px rgba(194, 65, 12, 0.1);
+        }
+        .queue-item-card.done {
+            background: #FFFFFF;
+            border-color: #BBF7D0;
+        }
+        .queue-item-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--rs-text-heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .queue-item-url {
+            font-size: 11px;
+            color: var(--rs-text-muted);
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        .step-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .step-chip {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #E7E5E4;
+            color: var(--rs-text-muted);
+        }
+        .step-chip.active {
+            background: #FDBA74;
+            color: #9A3412;
+            animation: pulse 1s infinite alternate;
+        }
+        .step-chip.done {
+            background: var(--rs-success-soft);
+            color: var(--rs-success);
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        /* REVIEW TABLE SECTION */
+        #reviewSection {
+            display: none;
+            margin-top: 24px;
+        }
+        .review-table-wrapper {
+            background: #FFFFFF;
+            border: 1px solid var(--rs-surface-border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: var(--rs-shadow-card);
+        }
+        .review-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .review-table th {
+            background: #FAF8F5;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 800;
+            font-size: 11px;
+            color: var(--rs-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--rs-surface-border);
+        }
+        .review-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--rs-surface-border);
+            vertical-align: middle;
+        }
+        .review-table tr:hover {
+            background: #FCFBF9;
+        }
+
+        .photo-preview-box {
+            width: 58px;
+            height: 58px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid var(--rs-surface-border);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .photo-preview-box:hover {
+            transform: scale(1.08);
+        }
+        .recipe-title-text {
+            font-weight: 700;
+            color: var(--rs-text-heading);
+            font-size: 13.5px;
+            line-height: 1.3;
+            cursor: pointer;
+        }
+        .recipe-title-text:hover {
+            color: var(--rs-terracotta);
+            text-decoration: underline;
+        }
+        .recipe-sub-meta {
+            font-size: 11px;
+            color: var(--rs-text-muted);
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tag-pill {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .tag-pill.ready {
+            background: var(--rs-success-soft);
+            color: var(--rs-success);
+        }
+
+        /* INLINE CATEGORY SELECTOR IN TABLE ROW */
+        .table-category-select {
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid #D6D3D1;
+            background: #FAF8F5;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--rs-terracotta-dark);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .table-category-select:focus {
+            outline: none;
+            border-color: var(--rs-terracotta);
+            background: #FFFFFF;
+        }
+
+        /* FIXED BOTTOM FLOATING ACTION BAR */
+        .bottom-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 250px;
+            right: 0;
+            height: 64px;
+            background: rgba(28, 25, 23, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #292524;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 36px;
+            z-index: 1000;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            color: white;
+        }
+        .summary-stats {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            font-size: 13px;
+        }
+        .btn-publish-all {
+            background: linear-gradient(135deg, var(--rs-terracotta) 0%, var(--rs-terracotta-dark) 100%);
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-size: 13.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px var(--rs-terracotta-glow);
+            transition: all 0.2s ease;
+        }
+        .btn-publish-all:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px var(--rs-terracotta-glow);
+        }
+
+        /* ==========================================================================
+           RECIPE PREVIEW & EDIT MODAL (Ready-to-Publish Inspector)
+           ========================================================================== */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .modal-card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--rs-surface-border);
+            animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes modalSlideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            padding: 18px 24px;
+            background: var(--rs-sidebar-bg);
+            border-bottom: 1px solid var(--rs-surface-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-title-box h3 {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--rs-text-heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: var(--rs-text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .modal-close-btn:hover {
+            background: #E7E5E4;
+            color: var(--rs-text-heading);
+        }
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            background: var(--rs-sidebar-bg);
+            border-top: 1px solid var(--rs-surface-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Modal Inner Elements */
+        .modal-photo-hero {
+            width: 100%;
+            height: 240px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid var(--rs-surface-border);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+            position: relative;
+        }
+        .modal-field-title {
+            font-size: 14.5px;
+            font-weight: 800;
+            color: var(--rs-text-heading);
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #D6D3D1;
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+        .modal-field-title:focus {
+            outline: none;
+            border-color: var(--rs-terracotta);
+            box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.15);
+        }
+        .modal-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .modal-meta-box {
+            background: var(--rs-sand-bg);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid var(--rs-surface-border);
+        }
+        .modal-meta-val {
+            font-weight: 800;
+            font-size: 13px;
+            color: var(--rs-text-heading);
+        }
+        .modal-meta-lbl {
+            font-size: 10px;
+            color: var(--rs-text-muted);
+            text-transform: uppercase;
+        }
+        .modal-list-box {
+            background: #FCFBF9;
+            border: 1px solid var(--rs-surface-border);
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .modal-list-box li {
+            margin-left: 18px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP BAR -->
+    <header class="top-navbar">
+        <div class="brand-container">
+            <div class="brand-icon">
+                <i class="material-icons">restaurant_menu</i>
+            </div>
+            <div class="brand-title">Recipe Studio</div>
+            <span class="brand-tag">Batch Orchestrator</span>
+
+            <!-- App context -->
+            <div class="product-switcher">
+                <a class="product-pill active">
+                    <i class="material-icons" style="font-size:13px;">local_fire_department</i> AirFryer EN
+                </a>
+                <a class="product-pill">
+                    <i class="material-icons" style="font-size:13px;">ramen_dining</i> Nusa Saji ID
+                </a>
+                <a class="product-pill">
+                    <i class="material-icons" style="font-size:13px;">fitness_center</i> ProteinPrep
+                </a>
+            </div>
+        </div>
+
+        <nav class="nav-tabs">
+            <a class="nav-tab-btn"><i class="material-icons" style="font-size:15px;">dashboard</i> Dashboard</a>
+            <a class="nav-tab-btn"><i class="material-icons" style="font-size:15px;">restaurant</i> Recipes</a>
+            <a class="nav-tab-btn active"><i class="material-icons" style="font-size:15px;">auto_awesome</i> Recipe Importer</a>
+            <a class="nav-tab-btn"><i class="material-icons" style="font-size:15px;">videocam</i> Video Studio</a>
+            <a class="nav-tab-btn"><i class="material-icons" style="font-size:15px;">settings</i> Settings</a>
+        </nav>
+    </header>
+
+    <div class="layout-wrapper">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar">AS</div>
+                <div>
+                    <div class="user-name">Studio Admin</div>
+                    <div class="user-role">Super Administrator</div>
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-title">Menu Utama</div>
+                <a class="sidebar-link"><i class="material-icons">dashboard</i> <span>Dashboard</span></a>
+                <a class="sidebar-link"><i class="material-icons">view_list</i> <span>Categories</span></a>
+                <a class="sidebar-link"><i class="material-icons">restaurant</i> <span>Manage Recipes</span></a>
+
+                <div class="menu-title" style="margin-top:14px;">Studio & Ingestion</div>
+                <a class="sidebar-link active"><i class="material-icons" style="color:var(--rs-terracotta);">hub</i> <span>Batch Orchestrator</span></a>
+                <a class="sidebar-link"><i class="material-icons">cloud_download</i> <span>Single Importer</span></a>
+                <a class="sidebar-link"><i class="material-icons">auto_stories</i> <span>Recipe Generator</span></a>
+                <a class="sidebar-link"><i class="material-icons">photo_camera</i> <span>Image Studio</span></a>
+                <a class="sidebar-link"><i class="material-icons">videocam</i> <span>Video Studio</span></a>
+
+                <div class="menu-title" style="margin-top:14px;">Distribusi</div>
+                <a class="sidebar-link"><i class="material-icons">sync_alt</i> <span>WordPress Sync</span></a>
+                <a class="sidebar-link"><i class="material-icons">settings</i> <span>Settings</span></a>
+            </div>
+        </aside>
+
+        <!-- MAIN WORKSPACE -->
+        <main class="main-container">
+            <div class="header-section">
+                <span class="page-badge">
+                    <i class="material-icons" style="font-size:14px;">flash_on</i> Automated Mass Ingestion Pipeline
+                </span>
+                <h1 class="page-title">Batch Recipe Orchestrator</h1>
+                <p class="page-subtitle">Impor puluhan URL resep sekaligus. Sistem otomatis melakukan Scrape, Polish teks dengan LLM, dan menghasilkan Foto AI Makanan Baru secara unik hingga tahap Siap Publish.</p>
+            </div>
+
+            <!-- MODE SWITCH TABS -->
+            <div class="importer-mode-tabs">
+                <div class="importer-tab-pill">
+                    <i class="material-icons" style="font-size:16px;">link</i> Single URL Importer (Manual)
+                </div>
+                <div class="importer-tab-pill active">
+                    <i class="material-icons" style="font-size:16px;">dynamic_feed</i> Batch Orchestrator (Auto Pipeline)
+                </div>
+            </div>
+
+            <!-- INPUT GRID -->
+            <div class="orchestrator-input-grid" id="inputSetupSection">
+                <!-- Left: Textarea URLs -->
+                <div class="card-panel">
+                    <div class="panel-heading">
+                        <i class="material-icons" style="color:var(--rs-terracotta);">receipt_long</i>
+                        <span>Daftar URL Resep Target (Paste di sini)</span>
+                    </div>
+
+                    <textarea id="urlInputTextarea" class="url-textarea" placeholder="Paste URL resep satu per baris...">https://www.allrecipes.com/recipe/279895/air-fryer-honey-mustard-salmon/
+https://www.delish.com/cooking/recipe-ideas/a35899478/air-fryer-crispy-chicken-tenders/
+https://pinchofyum.com/crispy-air-fryer-parmesan-brussels-sprouts
+https://www.skinnytaste.com/air-fryer-steak-bites-with-garlic-butter/
+https://downshiftology.com/recipes/air-fryer-chicken-breast/</textarea>
+
+                    <div class="textarea-meta">
+                        <span id="urlCountInfo">Terdeteksi: <strong>5 URL</strong> valid</span>
+                        <span style="color:var(--rs-terracotta); font-weight:600;"><i class="material-icons" style="font-size:12px; vertical-align:middle;">security</i> Concurrency safe & timeout protected</span>
+                    </div>
+
+                    <button class="btn-start-orchestrator" onclick="startSimulatedOrchestrator()">
+                        <i class="material-icons">play_circle_filled</i> Mulai Orkestrasi Otomatis (5 URL)
+                    </button>
+                </div>
+
+                <!-- Right: Batch Preset Configurations -->
+                <div class="card-panel">
+                    <div class="panel-heading">
+                        <i class="material-icons" style="color:var(--rs-terracotta);">tune</i>
+                        <span>Pengaturan Pipeline Batch</span>
+                    </div>
+
+                    <div class="form-group-item">
+                        <label class="form-label">Target Aplikasi Resep</label>
+                        <select class="select-custom" id="presetApp">
+                            <option value="airfry" selected>🔥 AirFryer Global (English)</option>
+                            <option value="nusasaji">🍜 Nusa Saji (Bahasa Indonesia)</option>
+                            <option value="proteinprep">💪 ProteinPrep (Fitness / MealPrep)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group-item">
+                        <div class="form-label">
+                            <span>Kategori Default</span>
+                            <a href="javascript:void(0)" onclick="promptAddNewCategory()" style="font-size:11px; color:var(--rs-terracotta); text-decoration:none; font-weight:700;">+ Tambah Kategori Baru</a>
+                        </div>
+                        <select class="select-custom" id="presetCategory">
+                            <option value="Chicken & Poultry" selected>🍗 Chicken & Poultry</option>
+                            <option value="Dinner / Main Course">🍽️ Dinner / Main Course</option>
+                            <option value="Seafood & Fish">🐟 Seafood & Fish</option>
+                            <option value="Snacks & Appetizers">🍟 Crispy Appetizers & Snacks</option>
+                            <option value="Vegetables & Healthy">🥦 Vegetables & Healthy Greens</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group-item">
+                        <label class="form-label">Preset Fotografi AI (Unique Image)</label>
+                        <select class="select-custom" id="presetPhotoStyle">
+                            <option value="Modern Fine Dining" selected>📸 Modern Fine Dining (85mm, Studio Lighting)</option>
+                            <option value="Rustic Commercial">Rustic Home Culinary (Wood Board, Soft Steam)</option>
+                            <option value="Dark Moody Gourmet">Dark Moody Gourmet (High Contrast, Crisp Crust)</option>
+                        </select>
+                    </div>
+
+                    <!-- Mandatory Photo Notice -->
+                    <div class="notice-box">
+                        <i class="material-icons" style="font-size:18px; color:var(--rs-terracotta);">verified</i>
+                        <div>
+                            <strong>Wajib Foto Baru & Unik:</strong> Setiap resep otomatis di-generate foto AI baru resolusi tinggi ke folder <code>upload/</code>. Tidak memakai foto web luar agar terbebas dari hak cipta.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE PROGRESS MONITOR -->
+            <div class="card-panel" id="progressMonitor">
+                <div class="progress-header-flex">
+                    <div style="font-size:14px; font-weight:800; color:var(--rs-text-heading); display:flex; align-items:center; gap:8px;">
+                        <i class="material-icons" style="color:var(--rs-terracotta); animation:spin 2s linear infinite;">autorenew</i>
+                        <span id="progressStatusLabel">Menjalankan Antrian Otomatis: Resep 1 dari 5...</span>
+                    </div>
+                    <span id="progressPercentage" style="font-weight:800; font-family:'Outfit'; color:var(--rs-terracotta); font-size:16px;">0%</span>
+                </div>
+
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+
+                <!-- Queue Cards List -->
+                <div class="queue-items-container" id="queueList">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- REVIEW & PUBLISH SECTION (Visible when completed) -->
+            <div id="reviewSection">
+                <div class="card-panel" style="margin-bottom:14px; padding:16px 22px; display:flex; align-items:center; justify-content:space-between; background:#F0FDF4; border-color:#BBF7D0;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <i class="material-icons" style="color:#15803D; font-size:26px;">check_circle</i>
+                        <div>
+                            <div style="font-size:14px; font-weight:800; color:#166534;">Orkestrasi Selesai! 5 Resep Siap Ditinjau</div>
+                            <div style="font-size:12px; color:#15803D;">Seluruh resep telah di-polish, dilengkapi foto AI baru, dan berstatus <strong>Draft Siap Publish</strong>. Anda dapat mengedit kategori atau klik untuk melihat preview lengkap.</div>
+                        </div>
+                    </div>
+                    <button class="btn-publish-all" onclick="publishAllRecipes()">
+                        <i class="material-icons">send</i> Publish All Resep (5)
+                    </button>
+                </div>
+
+                <div class="review-table-wrapper">
+                    <table class="review-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px; text-align:center;"><input type="checkbox" checked id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th>
+                                <th style="width:70px;">Foto AI Baru</th>
+                                <th>Judul Resep (Polished)</th>
+                                <th style="width:190px;">Kategori Resep</th>
+                                <th>Bahan & Waktu</th>
+                                <th>Status</th>
+                                <th style="text-align:right;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewTableBody">
+                            <!-- Populated after simulation -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- FIXED BOTTOM ACTION BAR (When Review is active) -->
+    <div class="bottom-action-bar" id="bottomActionBar" style="display:none;">
+        <div class="summary-stats">
+            <div><i class="material-icons" style="font-size:16px; color:#4ADE80; vertical-align:middle;">task_alt</i> <strong id="selectedCountText">5 resep terpilih</strong> untuk dipublikasikan</div>
+            <span style="color:#57534E;">|</span>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12.5px;">
+                <input type="checkbox" checked id="autoPushCheckbox">
+                <span>Otomatis Push Sync ke WordPress / App Target</span>
+            </label>
+        </div>
+        <button class="btn-publish-all" onclick="publishAllRecipes()">
+            <i class="material-icons">rocket_launch</i> Publish All Selected (<span id="btnCountText">5</span>)
+        </button>
+    </div>
+
+    <!-- ==========================================================================
+         RECIPE PREVIEW & EDIT MODAL (Ready-to-Publish Inspector)
+         ========================================================================== -->
+    <div class="modal-backdrop" id="recipePreviewModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <h3>
+                        <i class="material-icons" style="color:var(--rs-terracotta);">visibility</i>
+                        <span>Preview Draf Resep Siap Publish</span>
+                        <span class="tag-pill ready" style="margin-left:6px;">Status: Ready for Review</span>
+                    </h3>
+                </div>
+                <button class="modal-close-btn" onclick="closeRecipeModal()">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Left: Media & Quick Meta -->
+                <div>
+                    <img id="modalHeroImg" src="" class="modal-photo-hero" alt="Food Photo">
+                    <div style="font-size:11px; color:#15803D; font-weight:700; margin-top:8px; display:flex; align-items:center; gap:4px;">
+                        <i class="material-icons" style="font-size:14px;">auto_awesome</i> 100% Unique AI Generated Food Photo
+                    </div>
+
+                    <div class="modal-meta-grid">
+                        <div class="modal-meta-box">
+                            <div class="modal-meta-val" id="modalPrepTime">10m</div>
+                            <div class="modal-meta-lbl">Prep</div>
+                        </div>
+                        <div class="modal-meta-box">
+                            <div class="modal-meta-val" id="modalCookTime">15m</div>
+                            <div class="modal-meta-lbl">Cook</div>
+                        </div>
+                        <div class="modal-meta-box">
+                            <div class="modal-meta-val" id="modalCalories">390 kcal</div>
+                            <div class="modal-meta-lbl">Nutrition</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <label class="form-label">Kategori Resep (Bisa Diedit):</label>
+                        <select class="select-custom" id="modalCategorySelect" onchange="syncModalCategoryChange()">
+                            <option value="Chicken & Poultry">🍗 Chicken & Poultry</option>
+                            <option value="Dinner / Main Course">🍽️ Dinner / Main Course</option>
+                            <option value="Seafood & Fish">🐟 Seafood & Fish</option>
+                            <option value="Snacks & Appetizers">🍟 Crispy Appetizers & Snacks</option>
+                            <option value="Vegetables & Healthy">🥦 Vegetables & Healthy Greens</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <label class="form-label">URL Sumber Asli:</label>
+                        <a id="modalSourceLink" href="#" target="_blank" style="font-size:11px; color:var(--rs-text-muted); word-break:break-all; text-decoration:none; display:flex; align-items:center; gap:4px;">
+                            <i class="material-icons" style="font-size:12px;">open_in_new</i> <span id="modalSourceDomain">allrecipes.com</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right: Content Fields (Title, Summary, Ingredients, Steps) -->
+                <div>
+                    <label class="form-label">Judul Resep Polished:</label>
+                    <input type="text" id="modalRecipeTitle" class="modal-field-title">
+
+                    <label class="form-label">Summary & Aroma Hook:</label>
+                    <textarea id="modalRecipeSummary" style="width:100%; height:70px; border:1px solid #D6D3D1; border-radius:8px; padding:8px 10px; font-size:12px; margin-bottom:14px; font-family:inherit; resize:none;"></textarea>
+
+                    <label class="form-label">Bahan-Bahan (100% Takaran Terjaga Sesuai Asli):</label>
+                    <div class="modal-list-box" id="modalIngredientsList">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <label class="form-label" style="margin-top:14px;">Langkah Memasak Air Fryer (Terstruktur):</label>
+                    <div class="modal-list-box" id="modalInstructionsList">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button style="background:var(--rs-sand-bg); border:1px solid #D6D3D1; padding:8px 16px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;" onclick="closeRecipeModal()">Tutup</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-publish-all" style="padding:8px 18px; font-size:12.5px;" onclick="saveModalChanges()">
+                        <i class="material-icons" style="font-size:16px;">save</i> Simpan Perubahan Draf
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sampleRecipes = [
+            {
+                id: 1,
+                url: "https://www.allrecipes.com/recipe/279895/air-fryer-honey-mustard-salmon/",
+                title: "Ultra-Crispy Air Fryer Honey Mustard Glazed Salmon",
+                summary: "Tender, flaky salmon fillets coated in a sweet and tangy honey-dijon glaze, air-fried to golden perfection in under 15 minutes.\n\nEach serving provides 390 kcal, 34g protein.",
+                time: "18 mins",
+                prepTime: "5m",
+                cookTime: "13m",
+                cal: "390 kcal",
+                category: "Seafood & Fish",
+                img: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+                ingredients: [
+                    "2 salmon fillets (6 oz each, skin-on)",
+                    "2 tbsp Dijon mustard",
+                    "1.5 tbsp pure clover honey",
+                    "1 tbsp extra virgin olive oil",
+                    "1 clove garlic, minced",
+                    "1/2 tsp kosher salt",
+                    "1/4 tsp freshly cracked black pepper"
+                ],
+                instructions: [
+                    "Preheat your Air Fryer to 390°F (200°C) for 3 minutes.",
+                    "Whisk together Dijon mustard, honey, olive oil, minced garlic, salt, and black pepper in a small bowl.",
+                    "Pat salmon fillets dry with paper towels, then brush the honey mustard glaze generously over the top and sides.",
+                    "Place salmon skin-side down in a single layer in the air fryer basket without overlapping.",
+                    "Air fry at 390°F (200°C) for 9 to 11 minutes until salmon flakes easily with a fork and top forms a caramelized crust."
+                ]
+            },
+            {
+                id: 2,
+                url: "https://www.delish.com/cooking/recipe-ideas/a35899478/air-fryer-crispy-chicken-tenders/",
+                title: "Golden Parmesan Garlic Crusted Chicken Tenders",
+                summary: "Juicy on the inside and extraordinarily crunchy on the outside with grated parmesan, smoked paprika, and garlic butter aromatics.\n\nEach serving provides 420 kcal, 42g protein.",
+                time: "15 mins",
+                prepTime: "8m",
+                cookTime: "7m",
+                cal: "420 kcal",
+                category: "Chicken & Poultry",
+                img: "https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80",
+                ingredients: [
+                    "1 lb chicken breast tenders",
+                    "1 cup panko breadcrumbs",
+                    "1/3 cup grated parmesan cheese",
+                    "1 tsp garlic powder",
+                    "1 tsp smoked paprika",
+                    "2 large eggs, beaten",
+                    "1/2 tsp sea salt",
+                    "Olive oil spray"
+                ],
+                instructions: [
+                    "Preheat air fryer to 400°F (204°C).",
+                    "Dredge each tender in beaten eggs, then coat thoroughly in the seasoned panko-parmesan mixture.",
+                    "Arrange chicken tenders in the air fryer basket in a single layer. Spray lightly with olive oil spray.",
+                    "Air fry at 400°F for 5 minutes, flip tenders, spray lightly, and cook for another 4 to 5 minutes until golden brown and internal temperature hits 165°F."
+                ]
+            },
+            {
+                id: 3,
+                url: "https://pinchofyum.com/crispy-air-fryer-parmesan-brussels-sprouts",
+                title: "Caramelized Air Fryer Brussels Sprouts with Balsamic Drizzle",
+                summary: "Nutty, deeply caramelized Brussels sprouts with crispy edges, savory parmesan, and a tart glaze finish.\n\nEach serving provides 180 kcal, 6g fiber.",
+                time: "14 mins",
+                prepTime: "4m",
+                cookTime: "10m",
+                cal: "180 kcal",
+                category: "Vegetables & Healthy",
+                img: "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80",
+                ingredients: [
+                    "1 lb fresh Brussels sprouts, trimmed and halved",
+                    "2 tbsp avocado oil or olive oil",
+                    "1/3 cup freshly grated parmesan cheese",
+                    "1/2 tsp sea salt and coarse pepper",
+                    "1 tbsp aged balsamic glaze"
+                ],
+                instructions: [
+                    "Preheat air fryer to 375°F (190°C).",
+                    "Toss halved sprouts with oil, salt, and pepper until evenly coated.",
+                    "Transfer to basket in a single layer cut-side down for maximum browning.",
+                    "Air fry for 10 minutes, shaking the basket vigorously halfway at 5 minutes.",
+                    "Toss immediately with parmesan cheese and drizzle with balsamic glaze before serving warm."
+                ]
+            },
+            {
+                id: 4,
+                url: "https://www.skinnytaste.com/air-fryer-steak-bites-with-garlic-butter/",
+                title: "Juicy Garlic Herb Butter Air Fryer Steak Bites",
+                summary: "Bite-sized sirloin steak cubes seared with a caramelized exterior and succulent center, tossed in melted garlic-herb butter.\n\nEach serving provides 460 kcal, 48g protein.",
+                time: "12 mins",
+                prepTime: "5m",
+                cookTime: "7m",
+                cal: "460 kcal",
+                category: "Dinner / Main Course",
+                img: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80",
+                ingredients: [
+                    "1.2 lbs top sirloin steak, cut into 1-inch cubes",
+                    "1.5 tbsp olive oil",
+                    "1 tsp Worcestershire sauce",
+                    "3 tbsp unsalted butter, melted",
+                    "3 cloves garlic, minced",
+                    "1 tbsp fresh parsley, chopped",
+                    "Salt and black pepper to taste"
+                ],
+                instructions: [
+                    "Preheat air fryer to 400°F (204°C) for 4 minutes so the basket is scorching hot.",
+                    "Toss steak cubes with olive oil, Worcestershire, salt, and black pepper.",
+                    "Place in a single layer in the air fryer basket (do not crowd, air fry in two batches if needed).",
+                    "Cook at 400°F for 5 to 7 minutes, shaking basket at 3 minutes for medium-rare doneness.",
+                    "Toss hot steak bites in a bowl with melted garlic butter and chopped parsley immediately."
+                ]
+            },
+            {
+                id: 5,
+                url: "https://downshiftology.com/recipes/air-fryer-chicken-breast/",
+                title: "Tender Italian Herb Marinated Air Fryer Chicken Breast",
+                summary: "Incredibly juicy, flavorful boneless skinless chicken breasts cooked quickly without drying out.\n\nEach serving provides 310 kcal, 45g protein.",
+                time: "16 mins",
+                prepTime: "6m",
+                cookTime: "10m",
+                cal: "310 kcal",
+                category: "Chicken & Poultry",
+                img: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80",
+                ingredients: [
+                    "2 boneless, skinless chicken breasts (approx 8 oz each)",
+                    "1 tbsp olive oil",
+                    "1 tsp Italian seasoning blend (oregano, basil, thyme)",
+                    "1/2 tsp garlic powder",
+                    "1/2 tsp onion powder",
+                    "1/2 tsp sweet paprika",
+                    "1/2 tsp salt and freshly ground pepper"
+                ],
+                instructions: [
+                    "Pound thicker ends of chicken breasts to an even thickness using a meat mallet.",
+                    "Rub chicken with olive oil and coat generously on all sides with the Italian herb seasoning mix.",
+                    "Preheat air fryer to 380°F (193°C).",
+                    "Place chicken breasts in basket with ample space between them.",
+                    "Air fry for 9 to 11 minutes, flipping at 6 minutes, until instant-read thermometer reads 165°F.",
+                    "Let rest on cutting board for 5 minutes before slicing to lock in all juices."
+                ]
+            }
+        ];
+
+        let activeRecipeIndex = 0;
+
+        function startSimulatedOrchestrator() {
+            // Hide setup, show progress
+            document.getElementById('inputSetupSection').style.opacity = '0.5';
+            document.getElementById('progressMonitor').style.display = 'block';
+
+            const queueList = document.getElementById('queueList');
+            queueList.innerHTML = '';
+
+            // Render queue rows
+            sampleRecipes.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = 'queue-item-card';
+                el.id = 'queue-card-' + index;
+                el.innerHTML = `
+                    <div>
+                        <div class="queue-item-title">
+                            <span style="font-size:11px; background:#E7E5E4; padding:1px 6px; border-radius:4px;">#${index+1}</span>
+                            <span id="title-text-${index}">Menunggu antrian...</span>
+                        </div>
+                        <div class="queue-item-url">${item.url}</div>
+                    </div>
+                    <div class="step-chips-row">
+                        <span class="step-chip" id="chip-scrape-${index}">1. Scrape</span>
+                        <span class="step-chip" id="chip-polish-${index}">2. AI Polish</span>
+                        <span class="step-chip" id="chip-photo-${index}">3. AI Photo Gen</span>
+                        <span class="step-chip" id="chip-draft-${index}">4. Draft Ready</span>
+                    </div>
+                `;
+                queueList.appendChild(el);
+            });
+
+            // Simulate execution step by step
+            runQueueSimulation(0);
+        }
+
+        function runQueueSimulation(index) {
+            if (index >= sampleRecipes.length) {
+                // Done! Show review table
+                document.getElementById('progressStatusLabel').innerHTML = '<span style="color:#15803D;">✓ Semua 5 Resep Berhasil Diorkestrasi!</span>';
+                document.getElementById('progressPercentage').innerText = '100%';
+                document.getElementById('progressBarFill').style.width = '100%';
+
+                setTimeout(() => {
+                    showReviewTable();
+                }, 800);
+                return;
+            }
+
+            const current = sampleRecipes[index];
+            const pct = Math.round(((index) / sampleRecipes.length) * 100);
+            document.getElementById('progressBarFill').style.width = pct + '%';
+            document.getElementById('progressPercentage').innerText = pct + '%';
+            document.getElementById('progressStatusLabel').innerText = `Memproses (${index+1}/${sampleRecipes.length}): ${current.title.substring(0, 40)}...`;
+
+            const card = document.getElementById('queue-card-' + index);
+            card.className = 'queue-item-card processing';
+
+            // Step 1: Scrape
+            const chipScrape = document.getElementById('chip-scrape-' + index);
+            chipScrape.className = 'step-chip active';
+            
+            setTimeout(() => {
+                chipScrape.className = 'step-chip done';
+                chipScrape.innerText = '1. Scraped ✓';
+
+                // Step 2: Polish
+                const chipPolish = document.getElementById('chip-polish-' + index);
+                chipPolish.className = 'step-chip active';
+                document.getElementById('title-text-' + index).innerText = current.title;
+
+                setTimeout(() => {
+                    chipPolish.className = 'step-chip done';
+                    chipPolish.innerText = '2. Polished ✓';
+
+                    // Step 3: Photo Gen (Mandatory Fresh)
+                    const chipPhoto = document.getElementById('chip-photo-' + index);
+                    chipPhoto.className = 'step-chip active';
+
+                    setTimeout(() => {
+                        chipPhoto.className = 'step-chip done';
+                        chipPhoto.innerText = '3. AI Photo Gen ✓';
+
+                        // Step 4: Draft Ready
+                        const chipDraft = document.getElementById('chip-draft-' + index);
+                        chipDraft.className = 'step-chip done';
+                        chipDraft.innerText = '4. Ready ✓';
+
+                        card.className = 'queue-item-card done';
+
+                        // Next item
+                        runQueueSimulation(index + 1);
+                    }, 650);
+                }, 550);
+            }, 450);
+        }
+
+        function showReviewTable() {
+            document.getElementById('reviewSection').style.display = 'block';
+            document.getElementById('bottomActionBar').style.display = 'flex';
+
+            renderReviewTableRows();
+
+            // Smooth scroll to review section
+            document.getElementById('reviewSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderReviewTableRows() {
+            const tbody = document.getElementById('reviewTableBody');
+            tbody.innerHTML = '';
+
+            const categoriesList = [
+                "Chicken & Poultry",
+                "Dinner / Main Course",
+                "Seafood & Fish",
+                "Snacks & Appetizers",
+                "Vegetables & Healthy"
+            ];
+
+            sampleRecipes.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                
+                // Build category options
+                let catOptions = '';
+                categoriesList.forEach(c => {
+                    catOptions += `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c}</option>`;
+                });
+
+                tr.innerHTML = `
+                    <td style="text-align:center;"><input type="checkbox" checked class="item-checkbox" onchange="updateSelectedCount()"></td>
+                    <td>
+                        <img src="${item.img}" class="photo-preview-box" alt="AI Generated Food" onclick="openRecipeModal(${idx})" title="Klik untuk preview modal">
+                    </td>
+                    <td>
+                        <div class="recipe-title-text" onclick="openRecipeModal(${idx})">${item.title}</div>
+                        <div class="recipe-sub-meta">
+                            <span><i class="material-icons" style="font-size:12px; vertical-align:middle;">link</i> ${new URL(item.url).hostname}</span>
+                            <span>•</span>
+                            <span style="color:#15803D;"><i class="material-icons" style="font-size:12px; vertical-align:middle;">auto_awesome</i> Unique AI Photo Applied</span>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- 1. Inline Category Selector/Editor -->
+                        <select class="table-category-select" onchange="changeRecipeCategory(${idx}, this.value)">
+                            ${catOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <div style="font-size:12px; font-weight:700;">${item.ingredients.length} Bahan</div>
+                        <div style="font-size:11px; color:var(--rs-text-muted);">${item.time} • ${item.cal}</div>
+                    </td>
+                    <td><span class="tag-pill ready">Siap Publish</span></td>
+                    <td style="text-align:right;">
+                        <button style="background:var(--rs-terracotta-soft); color:var(--rs-terracotta-dark); border:1px solid #FED7AA; padding:6px 12px; border-radius:6px; font-size:11.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="openRecipeModal(${idx})">
+                            <i class="material-icons" style="font-size:14px;">visibility</i> Preview Draf
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Inline Category Changer
+        function changeRecipeCategory(idx, newCategory) {
+            sampleRecipes[idx].category = newCategory;
+        }
+
+        // Prompt add new category
+        function promptAddNewCategory() {
+            const newCat = prompt("Masukkan nama kategori baru:");
+            if (newCat && newCat.trim() !== '') {
+                const trimmed = newCat.trim();
+                const sel = document.getElementById('presetCategory');
+                const opt = document.createElement('option');
+                opt.value = trimmed;
+                opt.innerText = trimmed;
+                opt.selected = true;
+                sel.appendChild(opt);
+
+                const modalSel = document.getElementById('modalCategorySelect');
+                if (modalSel) {
+                    const mOpt = document.createElement('option');
+                    mOpt.value = trimmed;
+                    mOpt.innerText = trimmed;
+                    modalSel.appendChild(mOpt);
+                }
+                alert(`Kategori "${trimmed}" berhasil ditambahkan dan dipilih!`);
+            }
+        }
+
+        // ==========================================================================
+        // 2. MODAL PREVIEW & DRAFT INSPECTOR
+        // ==========================================================================
+        function openRecipeModal(idx) {
+            activeRecipeIndex = idx;
+            const r = sampleRecipes[idx];
+
+            document.getElementById('modalHeroImg').src = r.img;
+            document.getElementById('modalRecipeTitle').value = r.title;
+            document.getElementById('modalRecipeSummary').value = r.summary;
+            document.getElementById('modalPrepTime').innerText = r.prepTime;
+            document.getElementById('modalCookTime').innerText = r.cookTime;
+            document.getElementById('modalCalories').innerText = r.cal;
+            document.getElementById('modalCategorySelect').value = r.category;
+            
+            const urlObj = new URL(r.url);
+            document.getElementById('modalSourceLink').href = r.url;
+            document.getElementById('modalSourceDomain').innerText = urlObj.hostname;
+
+            // Render Ingredients
+            const ingList = document.getElementById('modalIngredientsList');
+            ingList.innerHTML = '<ul style="margin:0; padding-left:14px;">' + r.ingredients.map(i => `<li>${i}</li>`).join('') + '</ul>';
+
+            // Render Instructions
+            const instList = document.getElementById('modalInstructionsList');
+            instList.innerHTML = '<ol style="margin:0; padding-left:14px;">' + r.instructions.map(step => `<li>${step}</li>`).join('') + '</ol>';
+
+            document.getElementById('recipePreviewModal').style.display = 'flex';
+        }
+
+        function closeRecipeModal() {
+            document.getElementById('recipePreviewModal').style.display = 'none';
+        }
+
+        function syncModalCategoryChange() {
+            const newCat = document.getElementById('modalCategorySelect').value;
+            sampleRecipes[activeRecipeIndex].category = newCat;
+        }
+
+        function saveModalChanges() {
+            const r = sampleRecipes[activeRecipeIndex];
+            r.title = document.getElementById('modalRecipeTitle').value;
+            r.summary = document.getElementById('modalRecipeSummary').value;
+            r.category = document.getElementById('modalCategorySelect').value;
+
+            // Re-render table
+            renderReviewTableRows();
+            closeRecipeModal();
+            alert('✓ Perubahan draf resep berhasil disimpan!');
+        }
+
+        function toggleSelectAll(masterCb) {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = masterCb.checked);
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.item-checkbox:checked').length;
+            document.getElementById('selectedCountText').innerText = count + ' resep terpilih';
+            document.getElementById('btnCountText').innerText = count;
+        }
+
+        function publishAllRecipes() {
+            const count = document.querySelectorAll('.item-checkbox:checked').length;
+            const autoPush = document.getElementById('autoPushCheckbox').checked;
+            
+            const msg = `🎉 Sukses Mempublikasikan ${count} Resep Sekaligus!\n\n`
+                      + `• Seluruh resep telah dipindahkan ke Database Utama (tbl_recipes)\n`
+                      + `• Foto AI telah ter-link permanen di storage upload/\n`
+                      + (autoPush ? `• Auto-Push ke WordPress Sync: SUKSES DIKIRIM!\n` : `• Disimpan secara lokal (Draft -> Published).\n`);
+            
+            alert(msg);
+            location.reload();
+        }
+    </script>
+</body>
+</html>

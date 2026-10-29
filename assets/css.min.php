@@ -36,8 +36,8 @@
    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
    <!-- Airfryer Suite Brand Design System & Mockup Stylesheet -->
-   <link href="assets/css/airfry-theme.css" rel="stylesheet">
-   <link href="assets/css/airfry-suite.css" rel="stylesheet">
+   <link href="assets/css/airfry-theme.css?v=<?php echo filemtime(__DIR__ . '/css/airfry-theme.css'); ?>" rel="stylesheet">
+   <link href="assets/css/airfry-suite.css?v=<?php echo filemtime(__DIR__ . '/css/airfry-suite.css'); ?>" rel="stylesheet">
 
    <script src="assets/js/jquery-1.9.1.min.js"></script>
 

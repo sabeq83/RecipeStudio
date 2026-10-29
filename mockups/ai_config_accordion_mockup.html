@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup Proposal: Exclusive Accordion AI Config</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #F8FAFC;
+            --surface: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-primary: #0284C7;
+            --brand-teal: #0D9488;
+            --brand-teal-soft: #CCFBF1;
+            --brand-orange: #EA580C;
+            --brand-orange-soft: #FFEDD5;
+            --brand-purple: #7C3AED;
+            --brand-purple-soft: #EDE9FE;
+            --brand-green: #16A34A;
+            --brand-green-soft: #DCFCE7;
+            --danger: #DC2626;
+            --radius-lg: 14px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+            --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+            --shadow-active: 0 10px 25px -3px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+
+        /* Banner Review Info */
+        .proposal-banner {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            color: #FFFFFF;
+            border-radius: var(--radius-lg);
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .proposal-title h1 {
+            font-size: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .proposal-title p {
+            color: #94A3B8;
+            font-size: 13.5px;
+            max-width: 680px;
+        }
+
+        .pill-badge {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(14, 165, 233, 0.2);
+            color: #38BDF8;
+            border: 1px solid rgba(14, 165, 233, 0.3);
+        }
+
+        /* Quick Navigation Bar */
+        .accordion-nav-bar {
+            background: #FFFFFF;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 10px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .accordion-nav-items {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .nav-chip {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid transparent;
+            background: #F1F5F9;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-chip:hover {
+            background: #E2E8F0;
+            color: var(--text-main);
+        }
+
+        .nav-chip.active {
+            background: #0F172A;
+            color: #FFFFFF;
+        }
+
+        /* Accordion Card Container */
+        .accordion-group {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .accordion-card {
+            background: var(--surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .accordion-card.open {
+            box-shadow: var(--shadow-active);
+            border-color: #CBD5E1;
+        }
+
+        /* Specific card theme accents */
+        .accordion-card[data-section="1"].open { border-left: 5px solid var(--brand-primary); }
+        .accordion-card[data-section="2"].open { border-left: 5px solid var(--brand-purple); }
+        .accordion-card[data-section="3"].open { border-left: 5px solid var(--brand-orange); }
+        .accordion-card[data-section="4"].open { border-left: 5px solid var(--brand-teal); }
+        .accordion-card[data-section="5"].open { border-left: 5px solid #F97316; }
+        .accordion-card[data-section="6"].open { border-left: 5px solid #10B981; }
+
+        /* Accordion Header (Clickable Trigger) */
+        .accordion-header {
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: #FFFFFF;
+            transition: background 0.15s ease;
+        }
+
+        .accordion-header:hover {
+            background: #F8FAFC;
+        }
+
+        .accordion-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .card-icon.blue { background: #E0F2FE; color: #0284C7; }
+        .card-icon.purple { background: var(--brand-purple-soft); color: var(--brand-purple); }
+        .card-icon.orange { background: var(--brand-orange-soft); color: var(--brand-orange); }
+        .card-icon.teal { background: var(--brand-teal-soft); color: var(--brand-teal); }
+        .card-icon.amber { background: rgba(249, 115, 22, 0.12); color: #F97316; }
+        .card-icon.green { background: rgba(16, 185, 129, 0.12); color: #10B981; }
+
+        .card-title-group h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .card-title-group p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .accordion-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Summary Badges in collapsed header */
+        .status-pill {
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-pill.blue { background: #E0F2FE; color: #0284C7; }
+        .status-pill.purple { background: var(--brand-purple-soft); color: var(--brand-purple); }
+        .status-pill.orange { background: var(--brand-orange-soft); color: var(--brand-orange); }
+        .status-pill.teal { background: var(--brand-teal-soft); color: var(--brand-teal); }
+        .status-pill.amber { background: #FFEDD5; color: #C2410C; }
+        .status-pill.green { background: #DCFCE7; color: #16A34A; }
+
+        /* Rotate Chevron */
+        .chevron-icon {
+            color: #94A3B8;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 22px;
+        }
+
+        .accordion-card.open .chevron-icon {
+            transform: rotate(180deg);
+            color: var(--text-main);
+        }
+
+        /* Accordion Body (Collapsible Section) */
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+            opacity: 0;
+            border-top: 1px solid transparent;
+        }
+
+        .accordion-card.open .accordion-body {
+            max-height: 2500px;
+            opacity: 1;
+            border-top: 1px solid var(--border-subtle);
+            padding: 24px;
+        }
+
+        /* Buttons & Tables inside cards */
+        .btn {
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-teal { background: var(--brand-teal); color: #FFF; }
+        .btn-teal:hover { background: #0F766E; }
+        .btn-outline { background: transparent; border: 1px solid var(--border-subtle); color: var(--text-main); }
+        .btn-outline:hover { background: #F1F5F9; }
+
+        .btn-sm { padding: 4px 8px; font-size: 11.5px; }
+
+        .mini-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-top: 10px;
+        }
+
+        .mini-table th {
+            background: #F8FAFC;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 700;
+            color: #475569;
+            font-size: 11.5px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .mini-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: middle;
+        }
+
+        .dummy-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .form-control {
+            font-family: inherit;
+            font-size: 13px;
+            padding: 8px 12px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            background: #FFF;
+        }
+
+        .callout-help {
+            background: #EFF6FF;
+            border-left: 4px solid #3B82F6;
+            padding: 10px 14px;
+            border-radius: 0 6px 6px 0;
+            font-size: 12px;
+            color: #1E40AF;
+            margin-top: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- PROPOSAL BANNER -->
+        <div class="proposal-banner">
+            <div class="proposal-title">
+                <h1>
+                    <i class="material-icons" style="font-size:24px; color:#38BDF8;">view_day</i>
+                    Mockup Usulan: Exclusive Accordion Layout (AI Config)
+                </h1>
+                <p>
+                    Setiap kartu konfigurasi dapat dibuka dan ditutup dengan interaksi <strong>Single-Open Accordion</strong> (ketika satu dibuka, yang lainnya otomatis tertutup rapat). Header kartu tetap menampilkan ringkasan status penting secara instan.
+                </p>
+            </div>
+            <div class="pill-badge">
+                <i class="material-icons" style="font-size:14px;">toggle_on</i>
+                Auto-Collapse Active
+            </div>
+        </div>
+
+        <!-- QUICK NAV TABS (Jump to Card) -->
+        <div class="accordion-nav-bar">
+            <div style="font-size:12px; font-weight:700; color:#64748B; display:flex; align-items:center; gap:6px;">
+                <i class="material-icons" style="font-size:16px;">touch_app</i>
+                Lompat Cepat ke Bagian:
+            </div>
+            <div class="accordion-nav-items">
+                <div class="nav-chip" onclick="toggleCard(1)"><i class="material-icons" style="font-size:14px;">dns</i> 1. Gemini Pool</div>
+                <div class="nav-chip" onclick="toggleCard(2)"><i class="material-icons" style="font-size:14px;">alt_route</i> 2. Waterfall</div>
+                <div class="nav-chip" onclick="toggleCard(3)"><i class="material-icons" style="font-size:14px;">router</i> 3. G-Labs GPU</div>
+                <div class="nav-chip active" onclick="toggleCard(4)"><i class="material-icons" style="font-size:14px;">cloud_sync</i> 4. Live Sync</div>
+                <div class="nav-chip" onclick="toggleCard(5)"><i class="material-icons" style="font-size:14px;">cloud_upload</i> 5. Cloudflare R2</div>
+                <div class="nav-chip" onclick="toggleCard(6)"><i class="material-icons" style="font-size:14px;">record_voice_over</i> 6. MiniMax TTS</div>
+            </div>
+        </div>
+
+        <!-- ACCORDION CONTAINER -->
+        <div class="accordion-group" id="accordionGroup">
+
+            <!-- CARD 1: GEMINI POOL -->
+            <div class="accordion-card" id="card-1" data-section="1">
+                <div class="accordion-header" onclick="toggleCard(1)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon blue">
+                            <i class="material-icons">dns</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>1. Pool API Key Google Gemini (Multi-Key Failover)</h2>
+                            <p>Rotasi kunci otomatis saat kuota akun habis atau mengalami HTTP 429.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill blue">
+                            <i class="material-icons" style="font-size:14px;">check_circle</i> 12 Kunci Aktif (18.000 RPD)
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span style="font-size:12.5px; color:#64748B;">Daftar akun Google AI Studio yang terdaftar dalam rotasi:</span>
+                        <button class="btn btn-outline btn-sm"><i class="material-icons" style="font-size:14px;">add</i> Tambah Kunci</button>
+                    </div>
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Label</th>
+                                <th>API Key (Masked)</th>
+                                <th>Kuota RPD</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Gemini Studio Pro #1</strong></td>
+                                <td><code>AIzaSyB••••••••4F72</code></td>
+                                <td>14 / 20 RPD</td>
+                                <td><span style="color:var(--brand-green); font-weight:700;">● Aktif</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Gemini Workspace Node #2</strong></td>
+                                <td><code>AIzaSyD••••••••92K1</code></td>
+                                <td>8 / 20 RPD</td>
+                                <td><span style="color:var(--brand-green); font-weight:700;">● Aktif</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CARD 2: WATERFALL RETRY -->
+            <div class="accordion-card" id="card-2" data-section="2">
+                <div class="accordion-header" onclick="toggleCard(2)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon purple">
+                            <i class="material-icons">alt_route</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>2. Rantai Eksekusi Berjenjang (Waterfall Fallback & Retry)</h2>
+                            <p>Orkestrasi model AI otomatis jika server Google mengalami 503 High Demand.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill purple">
+                            <i class="material-icons" style="font-size:14px;">stars</i> Utama: gemini-2.5-flash
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div class="form-group" style="max-width:500px; margin-bottom:14px;">
+                        <label class="form-label">Model Utama (Primary Executor):</label>
+                        <select class="form-control">
+                            <option selected>gemini-2.5-flash (Rekomendasi Utama — Cerdas & Cepat)</option>
+                            <option>gemini-3.6-flash (Sangat Stabil & Ringan)</option>
+                            <option>gemini-3.7-flash (Multimodal Cerdas)</option>
+                        </select>
+                    </div>
+                    <div class="callout-help">
+                        <strong>Simulasi Alur Failover:</strong> Jika <code>gemini-2.5-flash</code> mengalami error 503/429 setelah retry 2x, eksekusi otomatis diteruskan ke <code>gemini-3.6-flash</code> tanpa membatalkan batch.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 3: G-LABS LOCAL GPU -->
+            <div class="accordion-card" id="card-3" data-section="3">
+                <div class="accordion-header" onclick="toggleCard(3)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon orange">
+                            <i class="material-icons">router</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>3. G-Labs Image Renderer (Local GPU)</h2>
+                            <p>Koneksi ke GPU Mac Mini lokal & autentikasi task render.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill orange">
+                            <i class="material-icons" style="font-size:14px;">lan</i> 127.0.0.1:8765
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div class="dummy-form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Host / IP Endpoint:</label>
+                            <input type="text" class="form-control" value="127.0.0.1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Port:</label>
+                            <input type="number" class="form-control" value="8765">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 4: SINKRONISASI KE WEB HOSTING LIVE (DEFAULT OPEN) -->
+            <div class="accordion-card open" id="card-4" data-section="4">
+                <div class="accordion-header" onclick="toggleCard(4)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon teal">
+                            <i class="material-icons">cloud_sync</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>4. Sinkronisasi ke Web Hosting Live (Multi-App Manager)</h2>
+                            <p>Kelola daftar endpoint receiver hosting live (otomatis tampil di Batch Orchestrator).</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill teal">
+                            <i class="material-icons" style="font-size:14px;">apps</i> 3 Aplikasi Target Aktif
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:#475569;">Target server live receiver yang terhubung:</span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); alert('[Ping] Seluruh endpoint normal!');">
+                                <i class="material-icons" style="font-size:14px;">network_check</i> Uji Semua Endpoint
+                            </button>
+                            <button class="btn btn-teal btn-sm" onclick="event.stopPropagation(); alert('Membuka modal pendaftaran aplikasi target baru...');">
+                                <i class="material-icons" style="font-size:14px;">add</i> Tambah Aplikasi Lain
+                            </button>
+                        </div>
+                    </div>
+
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>Aplikasi & Kode Produk</th>
+                                <th>Target URL Receiver</th>
+                                <th>Bearer Token</th>
+                                <th>Status</th>
+                                <th style="text-align:right;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <strong>Air Fryer Recipes</strong>
+                                    <div style="font-size:11px; color:#0F766E; font-family:'JetBrains Mono'; font-weight:700;">airfry</div>
+                                </td>
+                                <td><code style="font-size:11.5px;">https://airfryeats.com/api_sync_recipe.php</code></td>
+                                <td>
+                                    <span style="font-family:'JetBrains Mono'; font-size:11.5px; background:#F1F5F9; padding:2px 6px; border-radius:4px;">
+                                        ••••••••3a2b1
+                                    </span>
+                                    <button class="btn btn-outline btn-sm" title="Generate Token Baru" onclick="event.stopPropagation(); alert('Generate Bearer Token Baru untuk Air Fryer Recipes?');">
+                                        <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">autorenew</i>
+                                    </button>
+                                </td>
+                                <td><span style="color:var(--brand-green); font-weight:700;">● Aktif</span></td>
+                                <td style="text-align:right;">
+                                    <button class="btn btn-outline btn-sm" title="Uji Koneksi (Ping)" onclick="event.stopPropagation(); alert('Ping ke Air Fryer: ONLINE (200 OK - 85ms)');">
+                                        <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <strong>Nusa Saji (Resep Nusantara)</strong>
+                                    <div style="font-size:11px; color:#0F766E; font-family:'JetBrains Mono'; font-weight:700;">nusasaji</div>
+                                </td>
+                                <td><code style="font-size:11.5px;">https://nusasaji.com/api_sync_recipe.php</code></td>
+                                <td>
+                                    <span style="font-family:'JetBrains Mono'; font-size:11.5px; background:#F1F5F9; padding:2px 6px; border-radius:4px;">
+                                        ••••••••2b1c2
+                                    </span>
+                                    <button class="btn btn-outline btn-sm" title="Generate Token Baru" onclick="event.stopPropagation(); alert('Generate Bearer Token Baru untuk Nusa Saji?');">
+                                        <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">autorenew</i>
+                                    </button>
+                                </td>
+                                <td><span style="color:var(--brand-green); font-weight:700;">● Aktif</span></td>
+                                <td style="text-align:right;">
+                                    <button class="btn btn-outline btn-sm" title="Uji Koneksi (Ping)" onclick="event.stopPropagation(); alert('Ping ke Nusa Saji: ONLINE (200 OK - 110ms)');">
+                                        <i class="material-icons" style="font-size:14px; color:var(--brand-teal);">cable</i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CARD 5: CLOUDFLARE R2 -->
+            <div class="accordion-card" id="card-5" data-section="5">
+                <div class="accordion-header" onclick="toggleCard(5)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon amber">
+                            <i class="material-icons">cloud_upload</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>5. Cloudflare R2 Object Storage (Penyimpanan Video CDN)</h2>
+                            <p>Streaming video MP4 9:16 langsung ke CDN Cloudflare tanpa biaya transfer egress.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill amber">
+                            <i class="material-icons" style="font-size:14px;">verified</i> Zero Egress CDN
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div class="dummy-form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Cloudflare Account ID:</label>
+                            <input type="text" class="form-control" value="9f8e7d6c5b4a321...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nama Bucket R2:</label>
+                            <input type="text" class="form-control" value="airfryer-recipes-video">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 6: MINIMAX TTS -->
+            <div class="accordion-card" id="card-6" data-section="6">
+                <div class="accordion-header" onclick="toggleCard(6)">
+                    <div class="accordion-header-left">
+                        <div class="card-icon green">
+                            <i class="material-icons">record_voice_over</i>
+                        </div>
+                        <div class="card-title-group">
+                            <h2>6. MiniMax AI Voiceover Engine (Text-to-Speech)</h2>
+                            <p>Sintesis suara narator profesional multibahasa dengan gateway failover.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="status-pill green">
+                            <i class="material-icons" style="font-size:14px;">mic</i> speech-2.8-turbo
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+                <div class="accordion-body">
+                    <div class="dummy-form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Model TTS Aktif:</label>
+                            <input type="text" class="form-control" value="speech-2.8-turbo" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Default Voice Preset:</label>
+                            <input type="text" class="form-control" value="Indonesian_energetic_streamer_vv2" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ACCORDION INTERACTIVE LOGIC SCRIPT -->
+    <script>
+        function toggleCard(sectionNumber) {
+            const targetCard = document.getElementById('card-' + sectionNumber);
+            const isAlreadyOpen = targetCard.classList.contains('open');
+
+            // Tutup SEMUA kartu lain (Exclusive Accordion rule: "ketika satu dibuka, lainnya tertutup")
+            const allCards = document.querySelectorAll('.accordion-card');
+            allCards.forEach(card => {
+                card.classList.remove('open');
+            });
+
+            // Update status chip navigation
+            const allChips = document.querySelectorAll('.nav-chip');
+            allChips.forEach(chip => chip.classList.remove('active'));
+
+            // Jika kartu target sebelumnya tertutup, sekarang kita buka
+            // Jika sebelumnya sudah terbuka dan diklik, kartu tersebut tertutup (atau jika ingin selalu minimal 1 terbuka, tinggal set open)
+            if (!isAlreadyOpen) {
+                targetCard.classList.add('open');
+                if (allChips[sectionNumber - 1]) {
+                    allChips[sectionNumber - 1].classList.add('active');
+                }
+                // Simpan preferensi section aktif ke localStorage
+                localStorage.setItem('recipe_studio_ai_config_active_card', sectionNumber);
+            } else {
+                localStorage.removeItem('recipe_studio_ai_config_active_card');
+            }
+        }
+    </script>
+</body>
+</html>

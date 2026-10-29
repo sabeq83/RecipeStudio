@@ -8,7 +8,7 @@ const CONFIG = {
   sharedRoot: '/Users/masbenu/recipe_studio/shared',
   currentLink: '/Users/masbenu/recipe_studio/current',
   legacyRoot: '/Users/masbenu/recipe_studio/app',
-  repositoryUrl: 'https://github.com/sabeq83/recipe-studio.git',
+  repositoryUrl: 'https://github.com/sabeq83/RecipeStudio.git',
   pm2AppName: 'recipe-studio',
   port: 8090,
   defaultRetention: 5

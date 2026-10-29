@@ -38,7 +38,7 @@ $syncClient = new SyncClient($connect);
 // =========================================================================
 // AJAX ACTIONS HANDLER
 // =========================================================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     $action = trim($_POST['action']);
 
@@ -159,10 +159,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // 5. TEST SYNC LIVE CONNECTION
+    // 5. TEST SYNC LIVE CONNECTION (DEFAULT)
     if ($action === 'test_sync') {
         $pingResult = $syncClient->pingLive();
         echo json_encode($pingResult);
+        exit;
+    }
+
+    // 5A. ADD SYNC APP DESTINATION
+    if ($action === 'add_sync_app') {
+        $pCode = trim($_POST['product_code'] ?? '');
+        $label = trim($_POST['label'] ?? '');
+        $url = trim($_POST['target_api_url'] ?? '');
+        $token = trim($_POST['sync_token'] ?? '');
+        $isActive = !empty($_POST['is_active']);
+        $res = $syncClient->addDestination($pCode, $label, $url, $token, $isActive);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5B. UPDATE SYNC APP DESTINATION
+    if ($action === 'update_sync_app') {
+        $id = (int)($_POST['id'] ?? 0);
+        $label = trim($_POST['label'] ?? '');
+        $url = trim($_POST['target_api_url'] ?? '');
+        $token = trim($_POST['sync_token'] ?? '');
+        $res = $syncClient->updateDestination($id, $label, $url, $token);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5C. DELETE SYNC APP DESTINATION
+    if ($action === 'delete_sync_app') {
+        $id = (int)($_POST['id'] ?? 0);
+        $res = $syncClient->deleteDestination($id);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5D. TOGGLE SYNC APP ACTIVE STATE
+    if ($action === 'toggle_sync_app') {
+        $id = (int)($_POST['id'] ?? 0);
+        $active = !empty($_POST['is_active']);
+        $res = $syncClient->toggleDestination($id, $active);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5E. REGENERATE BEARER TOKEN PER ROW
+    if ($action === 'regenerate_sync_token') {
+        $id = (int)($_POST['id'] ?? 0);
+        $res = $syncClient->regenerateToken($id);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5F. TEST SINGLE SYNC APP CONNECTION (PING)
+    if ($action === 'test_sync_app') {
+        $id = (int)($_POST['id'] ?? 0);
+        $res = $syncClient->pingDestination($id);
+        echo json_encode($res);
+        exit;
+    }
+
+    // 5G. TEST ALL SYNC APPS CONNECTION
+    if ($action === 'test_all_sync_apps') {
+        $apps = $syncClient->getAllDestinations();
+        $results = [];
+        $successCount = 0;
+        foreach ($apps as $app) {
+            if (empty($app['is_active'])) continue;
+            $ping = $syncClient->pingCustom($app['target_api_url'], $app['sync_token'], $app['label']);
+            if (!empty($ping['success'])) {
+                $successCount++;
+            }
+            $results[] = [
+                'id' => (int)$app['id'],
+                'label' => $app['label'],
+                'product_code' => $app['product_code'],
+                'success' => !empty($ping['success']),
+                'latency_ms' => $ping['latency_ms'] ?? 0,
+                'http_code' => $ping['http_code'] ?? 0,
+                'message' => $ping['message'] ?? ($ping['error'] ?? 'Tidak ada respons')
+            ];
+        }
+        echo json_encode([
+            'success' => true,
+            'total_tested' => count($results),
+            'success_count' => $successCount,
+            'details' => $results
+        ]);
         exit;
     }
 
@@ -372,6 +458,13 @@ foreach ($keysList as $k) {
     }
 }
 
+// Load Live Sync Destinations (Multi-App)
+$syncApps = $syncClient->getAllDestinations();
+$activeSyncAppsCount = 0;
+foreach ($syncApps as $sa) {
+    if (!empty($sa['is_active'])) $activeSyncAppsCount++;
+}
+
 // User data for topbar/sidebar
 $username = $_SESSION['user'] ?? 'admin';
 $sqlUser = "SELECT id, username, email FROM tbl_admin WHERE username = '$username'";
@@ -388,6 +481,62 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
     
     <!-- Centralized CSS Assets -->
     <?php include 'assets/css.min.php'; ?>
+    <style>
+    /* Direct Accordion Style (Zero-Cache Dependent) */
+    .config-card.accordion-card {
+        padding: 0 !important;
+        overflow: hidden !important;
+        border: 1px solid var(--pp-slate-border) !important;
+        margin-bottom: 18px !important;
+        background: #FFFFFF !important;
+        border-radius: 16px !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .config-card.accordion-card .config-card-header {
+        padding: 18px 26px !important;
+        margin-bottom: 0 !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        border-bottom: 1px solid transparent !important;
+        transition: background 0.15s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+    .config-card.accordion-card .config-card-header:hover {
+        background: #F8FAFC !important;
+    }
+    .config-card.accordion-card.open .config-card-header {
+        border-bottom: 1px solid #F1F5F9 !important;
+    }
+    .config-card.accordion-card .accordion-body-content {
+        display: none !important;
+        padding: 24px 28px !important;
+    }
+    .config-card.accordion-card.open .accordion-body-content {
+        display: block !important;
+        animation: accordionFadeIn 0.22s ease-out !important;
+    }
+    .config-card.accordion-card .chevron-icon {
+        color: #94A3B8 !important;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-size: 24px !important;
+    }
+    .config-card.accordion-card.open .chevron-icon {
+        transform: rotate(180deg) !important;
+        color: var(--pp-navy) !important;
+    }
+    .config-card.accordion-card[data-section="1"].open { border-left: 5px solid #2563EB !important; }
+    .config-card.accordion-card[data-section="2"].open { border-left: 5px solid #7C3AED !important; }
+    .config-card.accordion-card[data-section="3"].open { border-left: 5px solid #059669 !important; }
+    .config-card.accordion-card[data-section="4"].open { border-left: 5px solid var(--pp-teal) !important; }
+    .config-card.accordion-card[data-section="5"].open { border-left: 5px solid #F97316 !important; }
+    .config-card.accordion-card[data-section="6"].open { border-left: 5px solid #10B981 !important; }
+    .nav-chip.active {
+        background: #0F172A !important;
+        color: #FFFFFF !important;
+    }
+    </style>
 </head>
 <body class="theme-teal">
     <!-- Top Bar -->
@@ -490,16 +639,52 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                         <i class="material-icons">cloud_sync</i>
                     </div>
                     <div class="metric-info">
-                        <div class="metric-label">Dual Deployment</div>
-                        <div class="metric-value">Aktif</div>
-                        <div class="metric-sub">1-Click Live Hosting Sync</div>
+                        <div class="metric-label">Aplikasi Target Live</div>
+                        <div class="metric-value" id="disp-total-sync-apps"><?php echo count($syncApps); ?> Aplikasi</div>
+                        <div class="metric-sub"><?php echo $activeSyncAppsCount; ?> Aktif &bull; Auto-Sync Importer</div>
                     </div>
                 </div>
             </div>
 
+            <!-- ACCORDION QUICK JUMP BAR -->
+            <div class="accordion-nav-bar" id="accordion-nav-bar">
+                <div style="font-size:12px; font-weight:700; color:var(--pp-slate-muted); display:flex; align-items:center; gap:5px;">
+                    <i class="material-icons" style="font-size:16px; color:var(--pp-teal);">layers</i> MODUL KONFIGURASI:
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" class="nav-chip" id="nav-chip-1" onclick="toggleAccordionSection(1)">
+                        <span class="chip-num">1</span>
+                        <span>Pool Gemini</span>
+                    </button>
+                    <button type="button" class="nav-chip" id="nav-chip-2" onclick="toggleAccordionSection(2)">
+                        <span class="chip-num">2</span>
+                        <span>Waterfall Fallback</span>
+                    </button>
+                    <button type="button" class="nav-chip" id="nav-chip-3" onclick="toggleAccordionSection(3)">
+                        <span class="chip-num">3</span>
+                        <span>G-Labs Renderer</span>
+                    </button>
+                    <button type="button" class="nav-chip" id="nav-chip-4" onclick="toggleAccordionSection(4)">
+                        <span class="chip-num">4</span>
+                        <span>Live Hosting</span>
+                    </button>
+                    <button type="button" class="nav-chip" id="nav-chip-5" onclick="toggleAccordionSection(5)">
+                        <span class="chip-num">5</span>
+                        <span>Cloudflare R2</span>
+                    </button>
+                    <button type="button" class="nav-chip" id="nav-chip-6" onclick="toggleAccordionSection(6)">
+                        <span class="chip-num">6</span>
+                        <span>MiniMax TTS</span>
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="closeAllAccordionSections()" style="padding:5px 12px; font-size:11.5px; border-radius:20px; margin-left:6px;" title="Tutup semua modul">
+                        <i class="material-icons" style="font-size:14px;">unfold_less</i> Tutup Semua
+                    </button>
+                </div>
+            </div>
+
             <!-- SECTION 1: POOL API KEY GEMINI -->
-            <section class="config-card">
-                <div class="config-card-header">
+            <section class="config-card accordion-card" id="sec-card-1" data-section="1">
+                <div class="config-card-header" onclick="toggleAccordionSection(1)" role="button" tabindex="0">
                     <div class="config-card-header-left">
                         <div class="config-header-icon icon-gemini">
                             <i class="material-icons">dns</i>
@@ -509,15 +694,27 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             <p>Rotasi kunci otomatis saat kuota akun habis atau mengalami HTTP 429 Too Many Requests.</p>
                         </div>
                     </div>
-                    <div class="config-card-actions" style="display:flex; gap:10px; align-items:center;">
-                        <button type="button" class="btn-brand-outline" id="btn-test-all-keys" onclick="testAllPoolKeys(this)" title="Uji validasi seluruh kunci dalam pool sekaligus">
-                            <i class="material-icons" style="font-size:16px;">checklist_rtl</i> Uji Semua Kunci
-                        </button>
-                        <button type="button" class="btn-brand-primary" onclick="openAddKeyModal()">
-                            <i class="material-icons" style="font-size:16px;">add</i> Tambah Kunci Baru
-                        </button>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill blue">
+                            <i class="material-icons" style="font-size:13px;">vpn_key</i>
+                            <span id="disp-accordion-pill-1"><?php echo $activeKeys; ?> / <?php echo $totalKeys; ?> Kunci (<?php echo number_format($totalCapacityRpd); ?> RPD)</span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
                     </div>
                 </div>
+
+                <div class="accordion-body-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:var(--pp-slate-muted);">Daftar API Key aktif yang siap digunakan untuk orkestrasi model AI.</span>
+                        <div class="config-card-actions" style="display:flex; gap:10px; align-items:center;">
+                            <button type="button" class="btn-brand-outline" id="btn-test-all-keys" onclick="testAllPoolKeys(this)" title="Uji validasi seluruh kunci dalam pool sekaligus">
+                                <i class="material-icons" style="font-size:16px;">checklist_rtl</i> Uji Semua Kunci
+                            </button>
+                            <button type="button" class="btn-brand-primary" onclick="openAddKeyModal()">
+                                <i class="material-icons" style="font-size:16px;">add</i> Tambah Kunci Baru
+                            </button>
+                        </div>
+                    </div>
 
                 <!-- Keys Table -->
                 <div class="table-responsive">
@@ -588,11 +785,18 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                         </tbody>
                     </table>
                 </div>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                    <button type="button" class="btn-secondary" onclick="closeAccordionSection(1)" style="font-size:12px; padding:6px 14px;">
+                        <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                    </button>
+                </div>
+            </div>
             </section>
 
             <!-- SECTION 2: WATERFALL FALLBACK ENGINE -->
-            <section class="config-card">
-                <div class="config-card-header">
+            <section class="config-card accordion-card" id="sec-card-2" data-section="2">
+                <div class="config-card-header" onclick="toggleAccordionSection(2)" role="button" tabindex="0">
                     <div class="config-card-header-left">
                         <div class="config-header-icon icon-waterfall">
                             <i class="material-icons">alt_route</i>
@@ -602,9 +806,17 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             <p>Orkestrasi model AI otomatis jika server Google mengalami 503 High Demand atau kehabisan token.</p>
                         </div>
                     </div>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill purple">
+                            <i class="material-icons" style="font-size:13px;">auto_awesome</i>
+                            <span id="disp-accordion-pill-2">Utama: <?php echo htmlspecialchars($primaryModel); ?></span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
                 </div>
 
-                <div class="form-group">
+                <div class="accordion-body-content">
+                    <div class="form-group">
                     <label class="form-label" for="select-primary-model">PILIH MODEL UTAMA (PRIMARY EXECUTOR):</label>
                     <select class="form-control" id="select-primary-model" onchange="changePrimaryModel(this.value)">
                         <option value="gemini-2.5-flash" <?php if ($primaryModel === 'gemini-2.5-flash') echo 'selected'; ?>>gemini-2.5-flash (Rekomendasi Utama — Cerdas &amp; Cepat)</option>
@@ -681,23 +893,39 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                         </ul>
                     </div>
                 </div>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                    <button type="button" class="btn-secondary" onclick="closeAccordionSection(2)" style="font-size:12px; padding:6px 14px;">
+                        <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                    </button>
+                </div>
+            </div>
             </section>
 
-            <!-- SECTION 3 & 4: RENDERER & HOSTING SYNC (2 COLUMNS) -->
-            <div class="two-col-grid">
-                
-                <!-- G-LABS / LOCAL GPU CONFIG -->
-                <section class="config-card" style="margin-bottom:0;">
-                    <div class="config-card-header">
-                        <div class="config-card-header-left">
-                            <div class="config-header-icon icon-glabs">
-                                <i class="material-icons">router</i>
-                            </div>
-                            <div class="config-card-title">
-                                <h2>3. G-Labs Image Renderer</h2>
-                                <p>Koneksi ke GPU Mac Mini lokal &amp; autentikasi API.</p>
-                            </div>
+            <!-- SECTION 3: G-LABS LOCAL GPU IMAGE RENDERER -->
+            <section class="config-card accordion-card" id="sec-card-3" data-section="3">
+                <div class="config-card-header" onclick="toggleAccordionSection(3)" role="button" tabindex="0">
+                    <div class="config-card-header-left">
+                        <div class="config-header-icon icon-glabs">
+                            <i class="material-icons">router</i>
                         </div>
+                        <div class="config-card-title">
+                            <h2>3. G-Labs Image Renderer</h2>
+                            <p>Koneksi ke GPU Mac Mini lokal &amp; autentikasi API.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill green">
+                            <i class="material-icons" style="font-size:13px;">developer_board</i>
+                            <span id="disp-accordion-pill-3"><?php echo htmlspecialchars($glabsHost . ':' . $glabsPort); ?></span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+
+                <div class="accordion-body-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:var(--pp-slate-muted);">Konfigurasi endpoint local GPU worker untuk generasi gambar gourmet.</span>
                         <button type="button" class="btn-brand-outline" onclick="testGlabsConnection(event)">
                             <i class="material-icons" style="font-size:14px;">cable</i> Tes Koneksi
                         </button>
@@ -748,77 +976,183 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             </select>
                         </div>
                     </div>
-                </section>
 
-                <!-- SECTION 4: SINKRONISASI KE WEB HOSTING LIVE -->
-                <section class="config-card" style="margin-bottom:0;">
-                    <div class="config-card-header">
-                        <div class="config-card-header-left">
-                            <div class="config-header-icon" style="background:var(--pp-teal-soft); color:var(--pp-teal);">
-                                <i class="material-icons">cloud_sync</i>
-                            </div>
-                            <div class="config-card-title">
-                                <h2>4. Sinkronisasi ke Web Hosting Live</h2>
-                                <p>Mekanisme 1-Click Push untuk publikasi ke server hosting live.</p>
-                            </div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                        <button type="button" class="btn-secondary" onclick="closeAccordionSection(3)" style="font-size:12px; padding:6px 14px;">
+                            <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: SINKRONISASI KE WEB HOSTING LIVE (MULTI-APP MANAGER) -->
+            <section class="config-card accordion-card" id="sec-card-4" data-section="4">
+                <div class="config-card-header" onclick="toggleAccordionSection(4)" role="button" tabindex="0">
+                    <div class="config-card-header-left">
+                        <div class="config-header-icon" style="background:var(--pp-teal-soft); color:var(--pp-teal);">
+                            <i class="material-icons">cloud_sync</i>
                         </div>
-                        <div class="config-card-actions">
-                            <button type="button" class="btn-brand-outline" onclick="testLiveSyncConnection()">
-                                <i class="material-icons" style="font-size:14px;">network_check</i> Uji Koneksi
+                        <div class="config-card-title">
+                            <h2>4. Sinkronisasi ke Web Hosting Live (Multi-App Manager)</h2>
+                            <p>Kelola daftar endpoint receiver server live hosting (cPanel/VPS). Aplikasi aktif otomatis tampil di Batch Orchestrator.</p>
+                        </div>
+                    </div>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill teal">
+                            <i class="material-icons" style="font-size:13px;">dns</i>
+                            <span id="disp-accordion-pill-4"><?php echo $activeSyncAppsCount; ?> / <?php echo count($syncApps); ?> Target Aktif</span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
+
+                <div class="accordion-body-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:var(--pp-slate-muted);">Daftar target webhook/receiver live hosting untuk auto-push resep.</span>
+                        <div class="config-card-actions" style="display:flex; gap:10px; align-items:center;">
+                            <button type="button" class="btn-brand-outline" id="btn-test-all-sync" onclick="testAllSyncApps(this)" title="Uji koneksi ke seluruh receiver hosting live aktif">
+                                <i class="material-icons" style="font-size:15px;">network_check</i> Uji Semua Endpoint
+                            </button>
+                            <button type="button" class="btn-brand-primary" onclick="openAddSyncAppModal()">
+                                <i class="material-icons" style="font-size:16px;">add</i> Tambah Aplikasi Lain
                             </button>
                         </div>
                     </div>
 
-                    <div style="display:flex; flex-direction:column; gap:20px;">
-                        <!-- Target URL -->
-                        <div class="form-group">
-                            <label class="form-label" for="sync-target-url">
-                                <span>Target URL Receiver Hosting:</span>
-                                <span style="font-size:11px; color:var(--pp-teal); font-weight:normal;">(Domain Server Live)</span>
-                            </label>
-                            <input type="text" id="sync-target-url" class="form-control" value="<?php echo htmlspecialchars($syncTargetUrl); ?>" placeholder="https://domain-anda.com/api_sync_recipe.php" style="font-family:monospace; font-size:13px;">
-                            <span class="form-helper">Alamat file receiver endpoint pada live web server (misal: <code>https://api.airfry.com/api_sync_recipe.php</code>).</span>
-                        </div>
+                <!-- Multi-App Table -->
+                <div class="table-responsive">
+                    <table class="key-table">
+                        <thead>
+                            <tr>
+                                <th style="width:230px;">Aplikasi &amp; Kode Produk</th>
+                                <th>Target URL Receiver API</th>
+                                <th style="width:260px;">Bearer Token (X-SYNC-TOKEN)</th>
+                                <th style="width:130px;">Status Sinkron</th>
+                                <th style="text-align:right; width:150px;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sync-apps-tbody">
+                            <?php if (empty($syncApps)): ?>
+                            <tr id="row-empty-sync-apps">
+                                <td colspan="5" style="text-align:center; padding:32px; color:var(--pp-slate-muted);">
+                                    <i class="material-icons" style="font-size:36px; color:#CBD5E1; display:block; margin-bottom:8px;">cloud_off</i>
+                                    Belum ada aplikasi live hosting terdaftar. Klik tombol <strong>Tambah Aplikasi Lain</strong> untuk mendaftarkan endpoint receiver.
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                                <?php foreach ($syncApps as $app): 
+                                    $appId = (int)$app['id'];
+                                    $pCode = htmlspecialchars($app['product_code']);
+                                    $label = htmlspecialchars($app['label']);
+                                    $url = htmlspecialchars($app['target_api_url']);
+                                    $token = $app['sync_token'];
+                                    $maskedTok = (strlen($token) > 10) ? (substr($token, 0, 6) . '••••' . substr($token, -4)) : $token;
+                                    $isActive = !empty($app['is_active']);
+                                    $lastSync = !empty($app['last_sync_at']) ? htmlspecialchars($app['last_sync_at']) : 'Belum pernah';
+                                ?>
+                                <tr id="sync-app-row-<?php echo $appId; ?>">
+                                    <td>
+                                        <div style="font-weight:700; color:var(--pp-navy); font-size:13.5px;" id="disp-app-label-<?php echo $appId; ?>"><?php echo $label; ?></div>
+                                        <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                            <span class="badge" style="background:#0F766E; color:#FFFFFF; font-family:monospace; font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700;">
+                                                <?php echo $pCode; ?>
+                                            </span>
+                                            <span style="font-size:11px; color:#64748B;">ID #<?php echo $appId; ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="font-family:monospace; font-size:12px; color:#0F766E; word-break:break-all;" id="disp-app-url-<?php echo $appId; ?>">
+                                            <?php echo $url; ?>
+                                        </div>
+                                        <div style="font-size:11px; color:#64748B; margin-top:3px;">
+                                            Terakhir sinkron: <span id="disp-app-lastsync-<?php echo $appId; ?>"><?php echo $lastSync; ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <span class="key-code" style="font-family:monospace; font-size:11.5px; padding:4px 8px;" id="disp-app-token-mask-<?php echo $appId; ?>" title="<?php echo htmlspecialchars($token, ENT_QUOTES); ?>">
+                                                <?php echo htmlspecialchars($maskedTok); ?>
+                                            </span>
+                                            <!-- Tombol Salin Token -->
+                                            <button type="button" class="action-icon-btn" onclick="copyToClipboard('<?php echo htmlspecialchars($token, ENT_QUOTES); ?>')" title="Salin Token">
+                                                <i class="material-icons" style="font-size:15px;">content_copy</i>
+                                            </button>
+                                            <!-- Tombol Bearer Token Generator per baris -->
+                                            <button type="button" class="action-icon-btn" onclick="regenerateSyncToken(<?php echo $appId; ?>, '<?php echo htmlspecialchars($label, ENT_QUOTES); ?>')" title="Generate Bearer Token Baru untuk Aplikasi Ini" style="color:var(--pp-teal);">
+                                                <i class="material-icons" style="font-size:16px;">autorenew</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                            <input type="checkbox" onchange="toggleSyncAppActive(<?php echo $appId; ?>, this.checked)" <?php echo $isActive ? 'checked' : ''; ?> style="accent-color:var(--pp-teal); width:16px; height:16px; cursor:pointer;">
+                                            <span class="status-badge <?php echo $isActive ? 'healthy' : 'standby'; ?>" id="sync-app-badge-<?php echo $appId; ?>" style="font-size:11.5px;">
+                                                <?php echo $isActive ? 'Aktif' : 'Non-aktif'; ?>
+                                            </span>
+                                        </label>
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <!-- Tombol Uji Koneksi -->
+                                        <button type="button" class="action-icon-btn" id="btn-test-sync-app-<?php echo $appId; ?>" onclick="testSingleSyncApp(<?php echo $appId; ?>, '<?php echo htmlspecialchars($label, ENT_QUOTES); ?>')" title="Uji Koneksi Ping ke Server Live">
+                                            <i class="material-icons" style="font-size:16px; color:var(--pp-teal);">cable</i>
+                                        </button>
+                                        <!-- Tombol Edit -->
+                                        <button type="button" class="action-icon-btn" onclick="openEditSyncAppModal(<?php echo $appId; ?>, '<?php echo htmlspecialchars($label, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pCode, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($url, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($token, ENT_QUOTES); ?>')" title="Ubah Pengaturan">
+                                            <i class="material-icons" style="font-size:16px;">edit</i>
+                                        </button>
+                                        <!-- Tombol Hapus -->
+                                        <button type="button" class="action-icon-btn danger" onclick="deleteSyncApp(<?php echo $appId; ?>, '<?php echo htmlspecialchars($label, ENT_QUOTES); ?>')" title="Hapus Aplikasi">
+                                            <i class="material-icons" style="font-size:16px;">delete_outline</i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
 
-                        <!-- Secret Bearer Token -->
-                        <div class="form-group">
-                            <label class="form-label" for="sync-secret-token">
-                                <span>Secret Bearer Token (Autentikasi Aman):</span>
-                                <span style="font-size:11px; color:#64748B; font-weight:normal;">Wajib sama antara Mac Mini &amp; Server Live</span>
-                            </label>
-                            <div style="display:flex; gap:10px;">
-                                <div class="key-input-wrapper" style="flex:1;">
-                                    <input type="password" id="sync-secret-token" class="form-control" value="<?php echo htmlspecialchars($syncSecretToken); ?>" placeholder="Token rahasia sinkronisasi...">
-                                    <button type="button" class="key-toggle-btn" onclick="toggleTokenVisibility('sync-secret-token', this)" title="Tampilkan/Sembunyikan">
-                                        <i class="material-icons" style="font-size:18px;">visibility</i>
-                                    </button>
-                                </div>
-                                <button type="button" class="btn-secondary" onclick="generateRandomToken()" title="Buat Token Acak Baru" style="white-space:nowrap;">
-                                    <i class="material-icons" style="font-size:16px; color:var(--pp-teal);">autorenew</i>
-                                    <span>Token Acak</span>
-                                </button>
-                            </div>
-                            <span class="form-helper">Disertakan via header HTTP <code>Authorization: Bearer &lt;token&gt;</code> saat sinkronisasi.</span>
-                        </div>
+                <!-- Info Callout -->
+                <div style="background:rgba(13, 148, 136, 0.05); border:1px solid rgba(13, 148, 136, 0.2); border-radius:8px; padding:12px 16px; margin-top:14px; font-size:12.5px; color:#0F766E;">
+                    <strong style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                        <i class="material-icons" style="font-size:16px;">info</i> Integrasi Otomatis dengan Batch Orchestrator:
+                    </strong>
+                    Semua aplikasi yang berstatus <strong>Aktif</strong> di atas akan secara otomatis muncul sebagai pilihan pada dropdown <em>"Aplikasi Target"</em> di <a href="importer.php" style="color:#0F766E; font-weight:700; text-decoration:underline;">Batch Importer</a>.
+                </div>
 
-                        <!-- Live Sync Status Banner -->
-                        <div id="sync-status-box" style="display:none; padding:12px 16px; border-radius:8px; font-size:13px;"></div>
+                <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                    <button type="button" class="btn-secondary" onclick="closeAccordionSection(4)" style="font-size:12px; padding:6px 14px;">
+                        <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                    </button>
+                </div>
+            </div>
+            </section>
+
+            <!-- SECTION 5: CLOUDFLARE R2 OBJECT STORAGE -->
+            <section class="config-card accordion-card" id="sec-card-5" data-section="5">
+                <div class="config-card-header" onclick="toggleAccordionSection(5)" role="button" tabindex="0">
+                    <div class="config-card-header-left">
+                        <div class="config-header-icon" style="background:rgba(249, 115, 22, 0.12); color:#F97316;">
+                            <i class="material-icons">cloud_upload</i>
+                        </div>
+                        <div class="config-card-title">
+                            <h2>5. Cloudflare R2 Object Storage (Penyimpanan Video)</h2>
+                            <p>Simpan dan streaming video vertikal 9:16 hasil FFmpeg ke CDN Cloudflare R2 tanpa biaya egress.</p>
+                        </div>
                     </div>
-                </section>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill amber">
+                            <i class="material-icons" style="font-size:13px;">cloud_done</i>
+                            <span id="disp-accordion-pill-5"><?php echo $r2Enabled ? 'R2 CDN Aktif' : 'Non-aktif'; ?></span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
+                    </div>
+                </div>
 
-                <!-- SECTION 5: CLOUDFLARE R2 OBJECT STORAGE -->
-                <section class="config-card" id="sec-cloudflare-r2" style="margin-top:24px; margin-bottom:0;">
-                    <div class="config-card-header">
-                        <div class="config-card-header-left">
-                            <div class="config-header-icon" style="background:rgba(249, 115, 22, 0.12); color:#F97316;">
-                                <i class="material-icons">cloud_upload</i>
-                            </div>
-                            <div class="config-card-title">
-                                <h2>5. Cloudflare R2 Object Storage (Penyimpanan Video)</h2>
-                                <p>Simpan dan streaming video vertikal 9:16 hasil FFmpeg ke CDN Cloudflare R2 tanpa biaya egress.</p>
-                            </div>
-                        </div>
-                        <div class="config-card-actions">
+                <div class="accordion-body-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:var(--pp-slate-muted);">Penyimpanan S3-compatible tanpa biaya egress bandwidth untuk streaming video.</span>
+                        <div class="config-card-actions" style="display:flex; gap:10px; align-items:center;">
                             <button type="button" class="btn-brand-outline" onclick="testR2Connection()" id="btn-test-r2">
                                 <i class="material-icons" style="font-size:14px;">network_check</i> Uji Koneksi R2
                             </button>
@@ -914,13 +1248,18 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             </ul>
                         </div>
                     </div>
-                </section>
 
-            </div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                        <button type="button" class="btn-secondary" onclick="closeAccordionSection(5)" style="font-size:12px; padding:6px 14px;">
+                            <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                        </button>
+                    </div>
+                </div>
+            </section>
 
             <!-- SECTION 6: MINIMAX TEXT-TO-SPEECH (TTS) VOICEOVER ENGINE -->
-            <section class="config-card" id="sec-minimax-tts" style="margin-top:24px; margin-bottom:0;">
-                <div class="config-card-header">
+            <section class="config-card accordion-card" id="sec-card-6" data-section="6">
+                <div class="config-card-header" onclick="toggleAccordionSection(6)" role="button" tabindex="0">
                     <div class="config-card-header-left">
                         <div class="config-header-icon" style="background:rgba(16, 185, 129, 0.12); color:#10B981;">
                             <i class="material-icons">record_voice_over</i>
@@ -930,17 +1269,29 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             <p>Sintesis suara narator profesional multibahasa (ID &amp; EN) dengan failover gateway otomatis.</p>
                         </div>
                     </div>
-                    <div class="config-card-actions">
-                        <button type="button" class="btn-brand-outline" onclick="testMiniMaxVoiceConnection()" id="btn-test-minimax">
-                            <i class="material-icons" style="font-size:14px;">play_circle</i> Uji Koneksi &amp; Suara
-                        </button>
-                        <button type="button" class="btn-brand-primary" onclick="saveMiniMaxConfiguration()" id="btn-save-minimax" style="padding:8px 16px; font-size:12.5px;">
-                            <i class="material-icons" style="font-size:15px;">save</i> Simpan Pengaturan TTS
-                        </button>
+                    <div class="accordion-header-right">
+                        <span class="header-status-pill emerald">
+                            <i class="material-icons" style="font-size:13px;">mic</i>
+                            <span id="disp-accordion-pill-6"><?php echo htmlspecialchars($minimaxModel); ?></span>
+                        </span>
+                        <i class="material-icons chevron-icon">expand_more</i>
                     </div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:20px;">
+                <div class="accordion-body-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+                        <span style="font-size:12.5px; color:var(--pp-slate-muted);">Sintesis audio narasi resep berkualitas tinggi menggunakan MiniMax t2a_v2.</span>
+                        <div class="config-card-actions" style="display:flex; gap:10px; align-items:center;">
+                            <button type="button" class="btn-brand-outline" onclick="testMiniMaxVoiceConnection()" id="btn-test-minimax">
+                                <i class="material-icons" style="font-size:14px;">play_circle</i> Uji Koneksi &amp; Suara
+                            </button>
+                            <button type="button" class="btn-brand-primary" onclick="saveMiniMaxConfiguration()" id="btn-save-minimax" style="padding:8px 16px; font-size:12.5px;">
+                                <i class="material-icons" style="font-size:15px;">save</i> Simpan Pengaturan TTS
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:20px;">
                     <!-- API Key & Group ID -->
                     <div class="row clearfix" style="margin-bottom:0;">
                         <div class="col-sm-8 col-xs-12">
@@ -1043,7 +1394,14 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             <div id="minimax-test-meta" style="font-size:11px; color:#64748B; margin-top:4px;"></div>
                         </div>
                     </div>
+
+                    <div style="display:flex; justify-content:flex-end; margin-top:20px; padding-top:14px; border-top:1px dashed #E2E8F0;">
+                        <button type="button" class="btn-secondary" onclick="closeAccordionSection(6)" style="font-size:12px; padding:6px 14px;">
+                            <i class="material-icons" style="font-size:16px;">expand_less</i> Tutup Bagian Ini
+                        </button>
+                    </div>
                 </div>
+            </div>
             </section>
 
             <!-- Bottom Floating Action Bar -->
@@ -1103,6 +1461,86 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                             <button type="button" class="btn-secondary" onclick="closeAddKeyModal()">Batal</button>
                             <button type="submit" class="btn-brand-primary" id="btn-save-key">
                                 <i class="material-icons" style="font-size:16px;">add</i> Simpan ke Pool
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH / EDIT APLIKASI TARGET SINKRONISASI -->
+    <div class="modal-overlay" id="syncAppModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title" id="syncAppModalTitle">
+                    <i class="material-icons" style="color:var(--pp-teal);">cloud_sync</i> Tambah Aplikasi Target Sinkronisasi
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeSyncAppModal()">
+                    <i class="material-icons">close</i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="form-sync-app" onsubmit="submitSyncAppForm(event)">
+                    <input type="hidden" id="input-sync-id" value="0">
+
+                    <div class="form-group">
+                        <label class="form-label" for="input-sync-label">Nama / Label Aplikasi:</label>
+                        <input type="text" id="input-sync-label" class="form-control" placeholder="Contoh: Nusa Saji, Protein Prep, Healthy Bowl" required>
+                        <span class="form-helper">Nama tampilan aplikasi untuk menu dan batch orchestrator.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="input-sync-code">
+                            <span>Kode Produk (Slug Unik):</span>
+                            <span style="font-size:11px; color:#64748B; font-weight:normal;">Huruf kecil tanpa spasi</span>
+                        </label>
+                        <input type="text" id="input-sync-code" class="form-control" placeholder="Contoh: nusasaji, protein, saladbox" style="font-family:monospace;" required>
+                        <span class="form-helper">Pengenal unik produk (disimpan di database resep &amp; API receiver).</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="input-sync-url">
+                            <span>Target Endpoint URL:</span>
+                            <span style="font-size:11px; color:var(--pp-teal); font-weight:normal;">(Receiver Script)</span>
+                        </label>
+                        <input type="url" id="input-sync-url" class="form-control" placeholder="https://domain-live.com/api_sync_recipe.php" style="font-family:monospace; font-size:13px;" required>
+                        <span class="form-helper">URL file <code>api_sync_recipe.php</code> di hosting tujuan.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="input-sync-token">
+                            <span>Secret Bearer Token (X-SYNC-TOKEN):</span>
+                            <a href="javascript:void(0);" onclick="generateModalSyncToken()" style="color:var(--pp-teal); font-weight:700; font-size:11.5px; text-decoration:none;">
+                                + Generate Token Acak
+                            </a>
+                        </label>
+                        <div class="key-input-wrapper">
+                            <input type="password" id="input-sync-token" class="form-control" placeholder="Token rahasia sinkronisasi..." style="font-family:monospace;" required>
+                            <button type="button" class="key-toggle-btn" onclick="toggleTokenVisibility('input-sync-token', this)" title="Tampilkan/Sembunyikan">
+                                <i class="material-icons" style="font-size:18px;">visibility</i>
+                            </button>
+                        </div>
+                        <span class="form-helper">Disertakan via header HTTP <code>Authorization: Bearer &lt;token&gt;</code> saat push.</span>
+                    </div>
+
+                    <div class="form-group" id="group-sync-is-active" style="margin-top:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+                            <input type="checkbox" id="input-sync-is-active" checked style="accent-color:var(--pp-teal); width:16px; height:16px; cursor:pointer;">
+                            <span style="font-size:12.5px; font-weight:600; color:#334155;">Aktifkan aplikasi ini untuk sinkronisasi otomatis</span>
+                        </label>
+                    </div>
+
+                    <div id="modal-sync-test-status" style="display:none; padding:10px 14px; border-radius:8px; font-size:12.5px; margin-top:14px; margin-bottom:8px;"></div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+                        <button type="button" class="btn-brand-outline" onclick="validateSyncEndpointFromModal()">
+                            <i class="material-icons" style="font-size:15px;">network_check</i> Uji Koneksi
+                        </button>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn-secondary" onclick="closeSyncAppModal()">Batal</button>
+                            <button type="submit" class="btn-brand-primary" id="btn-save-sync-app">
+                                <i class="material-icons" style="font-size:16px;">save</i> Simpan Aplikasi
                             </button>
                         </div>
                     </div>
@@ -1454,14 +1892,69 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
         });
     }
 
-    // Test Live Sync
-    function testLiveSyncConnection() {
-        var box = document.getElementById('sync-status-box');
+    // =========================================================================
+    // MULTI-APP LIVE SYNC DESTINATIONS MANAGEMENT
+    // =========================================================================
+
+    function openAddSyncAppModal() {
+        document.getElementById('syncAppModalTitle').innerHTML = '<i class="material-icons" style="color:var(--pp-teal);">cloud_sync</i> Tambah Aplikasi Target Sinkronisasi';
+        document.getElementById('input-sync-id').value = '0';
+        document.getElementById('input-sync-label').value = '';
+        var codeInput = document.getElementById('input-sync-code');
+        codeInput.value = '';
+        codeInput.readOnly = false;
+        document.getElementById('input-sync-url').value = '';
+        document.getElementById('input-sync-token').value = '';
+        document.getElementById('input-sync-is-active').checked = true;
+        document.getElementById('modal-sync-test-status').style.display = 'none';
+        generateModalSyncToken();
+        document.getElementById('syncAppModal').classList.add('active');
+        document.getElementById('input-sync-label').focus();
+    }
+
+    function openEditSyncAppModal(id, label, code, url, token) {
+        document.getElementById('syncAppModalTitle').innerHTML = '<i class="material-icons" style="color:var(--pp-teal);">edit</i> Edit Pengaturan Aplikasi Sinkronisasi';
+        document.getElementById('input-sync-id').value = id;
+        document.getElementById('input-sync-label').value = label;
+        var codeInput = document.getElementById('input-sync-code');
+        codeInput.value = code;
+        codeInput.readOnly = true;
+        document.getElementById('input-sync-url').value = url;
+        document.getElementById('input-sync-token').value = token;
+        document.getElementById('modal-sync-test-status').style.display = 'none';
+        document.getElementById('syncAppModal').classList.add('active');
+        document.getElementById('input-sync-label').focus();
+    }
+
+    function closeSyncAppModal() {
+        document.getElementById('syncAppModal').classList.remove('active');
+    }
+
+    function generateModalSyncToken() {
+        var slug = document.getElementById('input-sync-code').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        var prefix = slug || 'sync';
+        var rand = prefix + '_sec_' + Array.from(crypto.getRandomValues(new Uint8Array(8)), function(b) {
+            return b.toString(16).padStart(2, '0');
+        }).join('');
+        document.getElementById('input-sync-token').value = rand;
+    }
+
+    function validateSyncEndpointFromModal() {
+        var url = document.getElementById('input-sync-url').value.trim();
+        var token = document.getElementById('input-sync-token').value.trim();
+        var label = document.getElementById('input-sync-label').value.trim() || 'Aplikasi';
+        var box = document.getElementById('modal-sync-test-status');
+
+        if (!url) {
+            alert('Masukkan URL endpoint terlebih dahulu!');
+            return;
+        }
+
         box.style.display = 'block';
         box.style.background = '#EFF6FF';
         box.style.color = '#1D4ED8';
         box.style.border = '1px solid #BFDBFE';
-        box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">sync</i> Melakukan handshake ke target URL receiver...';
+        box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom; animation:spin 1s infinite linear;">sync</i> Menghubungi endpoint ' + url + '...';
 
         $.ajax({
             url: 'ai-config.php',
@@ -1473,21 +1966,247 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
                     box.style.background = '#D1FAE5';
                     box.style.color = '#047857';
                     box.style.border = '1px solid #A7F3D0';
-                    box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">check_circle</i> <strong>Koneksi Berhasil!</strong> Receiver server live merespons dengan kode HTTP 200.';
+                    box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">check_circle</i> <strong>Endpoint Valid!</strong> Live hosting merespons sukses (HTTP 200).';
                 } else {
                     box.style.background = '#FFFBEB';
                     box.style.color = '#B45309';
                     box.style.border = '1px solid #FCD34D';
-                    box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">info</i> Respons Server: ' + (resp.error || resp.message || 'Target URL belum aktif di hosting live (normal jika belum dideploy).');
+                    box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">info</i> Server merespons: ' + (resp.error || resp.message || 'Belum siap menerima data.');
                 }
             },
             error: function() {
-                box.style.background = '#FFFBEB';
-                box.style.color = '#B45309';
-                box.style.border = '1px solid #FCD34D';
-                box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">info</i> Target URL receiver belum dapat dijangkau dari server lokal ini.';
+                box.style.background = '#FEF2F2';
+                box.style.color = '#B91C1C';
+                box.style.border = '1px solid #FECACA';
+                box.innerHTML = '<i class="material-icons" style="font-size:14px; vertical-align:text-bottom;">error</i> Endpoint tidak dapat dijangkau dari server lokal ini.';
             }
         });
+    }
+
+    function submitSyncAppForm(e) {
+        e.preventDefault();
+        var id = parseInt(document.getElementById('input-sync-id').value, 10) || 0;
+        var label = document.getElementById('input-sync-label').value.trim();
+        var code = document.getElementById('input-sync-code').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        var url = document.getElementById('input-sync-url').value.trim();
+        var token = document.getElementById('input-sync-token').value.trim();
+        var isActive = document.getElementById('input-sync-is-active').checked ? 1 : 0;
+        var btn = document.getElementById('btn-save-sync-app');
+
+        if (!label || !code || !url || !token) {
+            alert('Semua kolom formulir wajib diisi!');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="material-icons" style="font-size:16px; animation:spin 1s infinite linear;">sync</i> Menyimpan...';
+
+        var action = (id > 0) ? 'update_sync_app' : 'add_sync_app';
+        var postData = {
+            action: action,
+            id: id,
+            label: label,
+            product_code: code,
+            target_api_url: url,
+            sync_token: token,
+            is_active: isActive
+        };
+
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: postData,
+            success: function(resp) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons" style="font-size:16px;">save</i> Simpan Aplikasi';
+                if (resp && resp.success) {
+                    alert(resp.message || 'Aplikasi berhasil disimpan!');
+                    closeSyncAppModal();
+                    location.reload();
+                } else {
+                    alert('Gagal: ' + (resp.error || 'Terjadi kesalahan sistem.'));
+                }
+            },
+            error: function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons" style="font-size:16px;">save</i> Simpan Aplikasi';
+                alert('Koneksi AJAX gagal menghubungi server.');
+            }
+        });
+    }
+
+    // Regenerate Bearer Token per Row
+    function regenerateSyncToken(appId, appLabel) {
+        if (!confirm('Generate Bearer Token baru untuk "' + appLabel + '"?\n\nToken autentikasi lama akan diganti dan Anda wajib memperbarui token yang sama pada file api_sync_recipe.php di hosting tujuan.')) {
+            return;
+        }
+
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { action: 'regenerate_sync_token', id: appId },
+            success: function(resp) {
+                if (resp && resp.success && resp.new_token) {
+                    var masked = resp.new_token.slice(0, 6) + '••••' + resp.new_token.slice(-4);
+                    var maskElem = document.getElementById('disp-app-token-mask-' + appId);
+                    if (maskElem) {
+                        maskElem.textContent = masked;
+                        maskElem.title = resp.new_token;
+                    }
+                    alert('Bearer Token Baru Berhasil Dibuat!\n\nToken: ' + resp.new_token + '\n\nToken telah disimpan di database. Salin token ini ke file receiver live hosting.');
+                    location.reload();
+                } else {
+                    alert('Gagal: ' + (resp.error || 'Tidak dapat membuat token baru.'));
+                }
+            },
+            error: function() {
+                alert('Gagal menghubungi server saat regenerasi token.');
+            }
+        });
+    }
+
+    // Test Single Sync App Connection (Ping)
+    function testSingleSyncApp(appId, appLabel) {
+        var btn = document.getElementById('btn-test-sync-app-' + appId);
+        var oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="material-icons" style="font-size:16px; animation:spin 1s infinite linear;">sync</i>';
+        }
+
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { action: 'test_sync_app', id: appId },
+            success: function(resp) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                if (resp && resp.success) {
+                    alert('Koneksi Sukses ke ' + appLabel + '!\n' +
+                          '• Status: ONLINE (HTTP ' + (resp.http_code || 200) + ')\n' +
+                          '• Latensi Riil: ' + (resp.latency_ms || 0) + ' ms\n' +
+                          '• Pesan Receiver: ' + (resp.message || 'Endpoint siap menerima resep.'));
+                } else {
+                    alert('Koneksi Gagal / Ditolak oleh ' + appLabel + ':\n' +
+                          '• Error: ' + (resp.error || 'Server tidak merespons.') + '\n' +
+                          '• Latensi: ' + (resp.latency_ms || 0) + ' ms\n\n' +
+                          'Pastikan URL endpoint benar dan token sinkronisasi cocok.');
+                }
+            },
+            error: function() {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                alert('Gagal menghubungi endpoint hosting ' + appLabel + '.');
+            }
+        });
+    }
+
+    // Test All Sync Apps Connection
+    function testAllSyncApps(btn) {
+        var oldHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="material-icons" style="font-size:15px; animation:spin 1s infinite linear;">sync</i> Menguji Seluruh Endpoint...';
+        }
+
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { action: 'test_all_sync_apps' },
+            success: function(resp) {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                if (resp && resp.success) {
+                    var msg = 'Hasil Uji Koneksi Seluruh Endpoint:\n' +
+                              'Total Diuji: ' + resp.total_tested + ' aplikasi\n' +
+                              'Berhasil Online: ' + resp.success_count + ' / ' + resp.total_tested + '\n\n';
+                    if (resp.details && resp.details.length) {
+                        resp.details.forEach(function(d, idx) {
+                            var statusStr = d.success ? ('ONLINE (' + d.latency_ms + 'ms)') : ('GAGAL - ' + d.message);
+                            msg += (idx + 1) + '. ' + d.label + ' [' + d.product_code + ']: ' + statusStr + '\n';
+                        });
+                    }
+                    alert(msg);
+                } else {
+                    alert('Gagal menguji seluruh endpoint: ' + (resp.error || 'Tidak ada respons.'));
+                }
+            },
+            error: function() {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = oldHtml;
+                }
+                alert('Koneksi AJAX gagal saat pengujian endpoint.');
+            }
+        });
+    }
+
+    // Toggle Sync App Active State
+    function toggleSyncAppActive(appId, isActive) {
+        var badge = document.getElementById('sync-app-badge-' + appId);
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { action: 'toggle_sync_app', id: appId, is_active: isActive ? 1 : 0 },
+            success: function(resp) {
+                if (resp && resp.success) {
+                    if (badge) {
+                        badge.className = 'status-badge ' + (isActive ? 'healthy' : 'standby');
+                        badge.textContent = isActive ? 'Aktif' : 'Non-aktif';
+                    }
+                } else {
+                    alert('Gagal memperbarui status: ' + (resp.error || 'Terjadi kesalahan.'));
+                    location.reload();
+                }
+            },
+            error: function() {
+                alert('Gagal menghubungi server.');
+                location.reload();
+            }
+        });
+    }
+
+    // Delete Sync App
+    function deleteSyncApp(appId, appLabel) {
+        if (!confirm('Yakin ingin menghapus aplikasi "' + appLabel + '" dari daftar target sinkronisasi?\n\nAplikasi ini tidak akan muncul lagi di dropdown Batch Orchestrator.')) {
+            return;
+        }
+
+        $.ajax({
+            url: 'ai-config.php',
+            type: 'POST',
+            dataType: 'json',
+            data: { action: 'delete_sync_app', id: appId },
+            success: function(resp) {
+                if (resp && resp.success) {
+                    alert(resp.message || 'Aplikasi berhasil dihapus.');
+                    var row = document.getElementById('sync-app-row-' + appId);
+                    if (row) row.remove();
+                    location.reload();
+                } else {
+                    alert('Gagal menghapus: ' + (resp.error || 'Terjadi kesalahan.'));
+                }
+            },
+            error: function() {
+                alert('Koneksi AJAX gagal saat menghapus aplikasi.');
+            }
+        });
+    }
+
+    // Backwards-compatible alias for legacy calls
+    function testLiveSyncConnection() {
+        testAllSyncApps(document.getElementById('btn-test-all-sync'));
     }
 
     // Test Cloudflare R2 Connection
@@ -1719,10 +2438,71 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
         });
     }
 
-    // Initialize voices on load
+    // ==========================================
+    // EXCLUSIVE SINGLE-OPEN ACCORDION CONTROLLER
+    // ==========================================
+    function toggleAccordionSection(sectionNum) {
+        var targetCard = document.getElementById('sec-card-' + sectionNum);
+        if (!targetCard) return;
+
+        var isCurrentlyOpen = targetCard.classList.contains('open');
+
+        // Selalu tutup semua kartu terlebih dahulu
+        document.querySelectorAll('.accordion-card').forEach(function(c) {
+            c.classList.remove('open');
+        });
+
+        // Reset semua chip navigasi
+        document.querySelectorAll('.nav-chip').forEach(function(chip) {
+            chip.classList.remove('active');
+        });
+
+        // Jika sebelumnya tertutup, maka buka
+        if (!isCurrentlyOpen) {
+            targetCard.classList.add('open');
+            var activeChip = document.getElementById('nav-chip-' + sectionNum);
+            if (activeChip) activeChip.classList.add('active');
+
+            // Scroll halus jika posisi kartu berada di luar viewport
+            setTimeout(function() {
+                var rect = targetCard.getBoundingClientRect();
+                if (rect.top < 60 || rect.top > window.innerHeight - 120) {
+                    targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 60);
+        }
+        // Jika sebelumnya sudah terbuka, biarkan semua tertutup (karena sudah di-remove class 'open')
+    }
+
+    // Fungsi eksplisit untuk menutup satu modul dari tombol di dalam body
+    function closeAccordionSection(sectionNum) {
+        var targetCard = document.getElementById('sec-card-' + sectionNum);
+        if (targetCard) {
+            targetCard.classList.remove('open');
+        }
+        var activeChip = document.getElementById('nav-chip-' + sectionNum);
+        if (activeChip) {
+            activeChip.classList.remove('active');
+        }
+    }
+
+    // Fungsi eksplisit untuk menutup seluruh modul sekaligus
+    function closeAllAccordionSections() {
+        document.querySelectorAll('.accordion-card').forEach(function(c) {
+            c.classList.remove('open');
+        });
+        document.querySelectorAll('.nav-chip').forEach(function(chip) {
+            chip.classList.remove('active');
+        });
+    }
+
+    // Initialize voices on load - DEFAULT SEMUA MODUL TERTUTUP
     $(document).ready(function() {
         var currentLang = document.getElementById('minimax-default-lang') ? document.getElementById('minimax-default-lang').value : 'id-ID';
         populateMiniMaxVoices(currentLang, SAVED_DEFAULT_VOICE);
+
+        // Pastikan default semua kartu tertutup saat pertama kali dimuat
+        closeAllAccordionSections();
     });
 
     // Save all configurations
@@ -1736,8 +2516,8 @@ $data = ($userResult && $userResult->num_rows > 0) ? $userResult->fetch_assoc() 
             glabs_api_key: document.getElementById('glabs-api-key').value.trim(),
             glabs_model: document.getElementById('glabs-model').value,
             default_style: document.getElementById('default-style').value,
-            sync_target_url: document.getElementById('sync-target-url').value.trim(),
-            sync_secret_token: document.getElementById('sync-secret-token').value.trim(),
+            sync_target_url: document.getElementById('sync-target-url') ? document.getElementById('sync-target-url').value.trim() : '',
+            sync_secret_token: document.getElementById('sync-secret-token') ? document.getElementById('sync-secret-token').value.trim() : '',
             r2_enabled: document.getElementById('r2-enabled') ? (document.getElementById('r2-enabled').checked ? 1 : 0) : 0,
             r2_account_id: document.getElementById('r2-account-id') ? document.getElementById('r2-account-id').value.trim() : '',
             r2_access_key_id: document.getElementById('r2-access-key-id') ? document.getElementById('r2-access-key-id').value.trim() : '',
