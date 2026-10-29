@@ -93,6 +93,46 @@ class RecipeStudioDatabaseMigration
                 KEY `idx_pack_status` (`product_code`, `status`, `is_featured`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
+                        "CREATE TABLE IF NOT EXISTS `tbl_ai_recipe_batches` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `batch_code` VARCHAR(64) NOT NULL,
+                `theme` VARCHAR(150) NOT NULL,
+                `primary_protein` VARCHAR(50) NOT NULL,
+                `recipe_count` INT(11) NOT NULL DEFAULT 3,
+                `target_portions` INT(11) NOT NULL DEFAULT 4,
+                `language` VARCHAR(10) NOT NULL DEFAULT 'en',
+                `max_prep_minutes` INT(11) NOT NULL DEFAULT 45,
+                `dietary_preferences` VARCHAR(255) NULL,
+                `excluded_ingredients` TEXT NULL,
+                `admin_notes` TEXT NULL,
+                `model_used` VARCHAR(100) NOT NULL DEFAULT 'gemini-2.0-flash',
+                `prompt_version` VARCHAR(20) NOT NULL DEFAULT 'v1.0',
+                `prep_pack_id` INT(11) NULL DEFAULT NULL,
+                `status` ENUM('generating', 'completed', 'partial', 'failed') NOT NULL DEFAULT 'completed',
+                `raw_response` LONGTEXT NULL,
+                `error_message` TEXT NULL,
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_batch_code` (`batch_code`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            "CREATE TABLE IF NOT EXISTS `tbl_ai_recipe_drafts` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `batch_id` INT(11) NOT NULL,
+                `recipe_id` INT(11) NULL DEFAULT NULL,
+                `draft_title` VARCHAR(255) NOT NULL,
+                `draft_data_json` LONGTEXT NOT NULL,
+                `validation_status` ENUM('valid', 'warning', 'invalid') NOT NULL DEFAULT 'valid',
+                `validation_notes` TEXT NULL,
+                `similarity_warning` TEXT NULL,
+                `is_published` TINYINT(1) NOT NULL DEFAULT 0,
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_batch` (`batch_id`),
+                KEY `idx_recipe` (`recipe_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
             "CREATE TABLE IF NOT EXISTS `tbl_sync_destinations` (
                 `id` INT(11) NOT NULL AUTO_INCREMENT,
                 `product_code` VARCHAR(50) NOT NULL,
