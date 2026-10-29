@@ -5,30 +5,30 @@
  */
 
 :root {
-    --pp-teal: #F97316;
-    --pp-teal-dark: #EA580C;
-    --pp-teal-soft: #FFF7ED;
-    --pp-teal-light: #FFFAF5;
-    --pp-orange: #EA580C;
-    --pp-orange-hover: #C2410C;
+    --pp-teal: #C2410C;
+    --pp-teal-dark: #9A3412;
+    --pp-teal-soft: #FFF1EB;
+    --pp-teal-light: #FFF7ED;
+    --pp-orange: #C2410C;
+    --pp-orange-hover: #9A3412;
     --pp-orange-soft: #FFF1EB;
-    --pp-navy: #0B1E39;
-    --pp-navy-light: #162B4D;
-    --pp-bg: #F8FAFC;
+    --pp-navy: #1C1917;
+    --pp-navy-light: #292524;
+    --pp-bg: #F5F1EB;
     --pp-surface: #FFFFFF;
-    --pp-slate-border: #E2E8F0;
-    --pp-slate-muted: #64748B;
-    --pp-slate-text: #0F172A;
-    --pp-success: #10B981;
-    --pp-success-soft: #D1FAE5;
-    --pp-warning: #F59E0B;
+    --pp-slate-border: #E7E5E4;
+    --pp-slate-muted: #78716C;
+    --pp-slate-text: #44403C;
+    --pp-success: #15803D;
+    --pp-success-soft: #DCFCE7;
+    --pp-warning: #B45309;
     --pp-warning-soft: #FEF3C7;
-    --pp-danger: #EF4444;
+    --pp-danger: #B91C1C;
     --pp-danger-soft: #FEE2E2;
 
     /* Override legacy AdminBSB base color */
-    --main-color: #F97316;
-    --second-color: #EA580C;
+    --main-color: #C2410C;
+    --second-color: #9A3412;
 }
 
 /* ==========================================================================
@@ -48,7 +48,7 @@ body .navbar {
 }
 
 .sidebar .user-info {
-    background: var(--pp-navy) !important;
+    background: #292524 !important;
     border-bottom: 3px solid var(--pp-orange) !important;
 }
 
@@ -107,19 +107,19 @@ body .navbar {
 
 .sidebar .menu .list a {
     font-weight: 600;
-    color: #475569 !important;
+    color: #57534E !important;
     border-radius: 6px;
     margin: 2px 8px;
 }
 
 .sidebar .menu .list a:hover {
-    background-color: var(--pp-teal-soft) !important;
-    color: var(--pp-teal-dark) !important;
+    background-color: #F5EFEB !important;
+    color: #C2410C !important;
 }
 
 .sidebar .menu .list li.active > a {
-    background-color: var(--pp-teal-soft) !important;
-    color: var(--pp-teal-dark) !important;
+    background-color: #F5EFEB !important;
+    color: #C2410C !important;
     font-weight: 700;
     border-left: 4px solid var(--pp-teal) !important;
 }
@@ -1479,13 +1479,13 @@ select.form-control option {
 .stepper-step.active .stepper-num {
     background: var(--pp-teal);
     color: white;
-    box-shadow: 0 3px 10px rgba(0, 141, 152, 0.35);
+    box-shadow: 0 3px 10px rgba(194, 65, 12, 0.35);
 }
 
 .stepper-step.active.orange .stepper-num {
     background: var(--pp-orange);
     color: white;
-    box-shadow: 0 3px 10px rgba(255, 112, 42, 0.35);
+    box-shadow: 0 3px 10px rgba(194, 65, 12, 0.35);
 }
 
 .stepper-step.done .stepper-num {
@@ -1827,14 +1827,14 @@ select.form-control option {
    AI STUDIO & VIDEO STUDIO BRANDED BUTTONS & DYNAMIC MEDIA STYLES
    ========================================================================== */
 .btn-action-primary {
-    background: #F97316 !important;
+    background: #C2410C !important;
     color: #FFFFFF !important;
     border: none !important;
     border-radius: 8px !important;
     padding: 8px 16px;
     font-weight: 700 !important;
     font-size: 13px !important;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(194, 65, 12, 0.3) !important;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -1844,10 +1844,10 @@ select.form-control option {
 }
 .btn-action-primary:hover,
 .btn-action-primary:focus {
-    background: #EA580C !important;
+    background: #9A3412 !important;
     color: #FFFFFF !important;
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4) !important;
+    box-shadow: 0 6px 16px rgba(194, 65, 12, 0.4) !important;
 }
 .btn-action-primary:disabled {
     background: #94A3B8 !important;

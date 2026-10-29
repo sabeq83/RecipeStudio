@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Theme Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body.theme-1 {
+            --primary: #F97316;
+            --topbar-bg: #0B1120;
+            --sidebar-bg: #FFFFFF;
+            --sidebar-border: #E2E8F0;
+            --sidebar-active-bg: #FFF7ED;
+            --sidebar-active-text: #EA580C;
+            --app-bg: #F8FAFC;
+            --surface-card: #FFFFFF;
+            --surface-border: #E2E8F0;
+            --text-heading: #0F172A;
+            --text-muted: #64748B;
+        }
+        body.theme-2 {
+            --primary: #059669;
+            --topbar-bg: #062E25;
+            --sidebar-bg: #FFFFFF;
+            --sidebar-border: #D1FAE5;
+            --sidebar-active-bg: #ECFDF5;
+            --sidebar-active-text: #047857;
+            --app-bg: #F4FBF7;
+            --surface-card: #FFFFFF;
+            --surface-border: #E6F4EA;
+            --text-heading: #064E3B;
+            --text-muted: #6B7280;
+        }
+        body.theme-3 {
+            --primary: #FF6B4A;
+            --topbar-bg: #090D16;
+            --sidebar-bg: #0F172A;
+            --sidebar-border: #1E293B;
+            --sidebar-active-bg: rgba(255, 107, 74, 0.15);
+            --sidebar-active-text: #FF6B4A;
+            --app-bg: #0B0F19;
+            --surface-card: #151D2E;
+            --surface-border: #223049;
+            --text-heading: #F8FAFC;
+            --text-muted: #8292A9;
+        }
+        body.theme-4 {
+            --primary: #C2410C;
+            --topbar-bg: #1C1917;
+            --sidebar-bg: #FAF8F5;
+            --sidebar-border: #E7E5E4;
+            --sidebar-active-bg: #F5EFEB;
+            --sidebar-active-text: #C2410C;
+            --app-bg: #F5F1EB;
+            --surface-card: #FFFFFF;
+            --surface-border: #E7E5E4;
+            --text-heading: #1C1917;
+            --text-muted: #78716C;
+        }
+        * { box-sizing: border-box; margin:0; padding:0; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--app-bg);
+            color: var(--text-heading);
+            transform-origin: top left;
+        }
+        .topbar {
+            height: 42px;
+            background: var(--topbar-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .main {
+            display: flex;
+            height: calc(100vh - 42px);
+        }
+        .sidebar {
+            width: 180px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .item {
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+        .item.active {
+            background: var(--sidebar-active-bg);
+            color: var(--sidebar-active-text);
+            font-weight: 700;
+        }
+        .content {
+            flex: 1;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .card {
+            background: var(--surface-card);
+            border: 1px solid var(--surface-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+        }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="theme-1">
+    <div class="topbar">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <i class="material-icons" style="color:var(--primary); font-size:16px;">restaurant_menu</i>
+            <span>Recipe Studio</span>
+            <span style="font-size:9px; background:rgba(255,255,255,0.15); padding:1px 5px; border-radius:4px;">PRO</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+            <span style="background:#F59E0B; padding:2px 8px; border-radius:10px; font-size:9px;">AirFry</span>
+            <span style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:10px; font-size:9px;">Nusa Saji</span>
+        </div>
+    </div>
+    <div class="main">
+        <div class="sidebar">
+            <div class="item active"><i class="material-icons" style="font-size:14px; color:var(--primary);">dashboard</i> Dashboard</div>
+            <div class="item"><i class="material-icons" style="font-size:14px;">restaurant</i> Recipes</div>
+            <div class="item"><i class="material-icons" style="font-size:14px; color:var(--primary);">auto_awesome</i> AI Studio</div>
+            <div class="item"><i class="material-icons" style="font-size:14px;">videocam</i> Video Studio</div>
+            <div class="item"><i class="material-icons" style="font-size:14px;">settings</i> Settings</div>
+        </div>
+        <div class="content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:14px;">Studio Overview</h3>
+                <button class="btn">+ New Recipe</button>
+            </div>
+            <div class="stat-row">
+                <div class="card">
+                    <div style="font-size:16px; font-weight:800; color:var(--primary);">1,280</div>
+                    <div style="font-size:10px; color:var(--text-muted);">Total Recipes</div>
+                </div>
+                <div class="card">
+                    <div style="font-size:16px; font-weight:800;">468</div>
+                    <div style="font-size:10px; color:var(--text-muted);">AI Generated</div>
+                </div>
+                <div class="card">
+                    <div style="font-size:16px; font-weight:800; color:#10B981;">98.4%</div>
+                    <div style="font-size:10px; color:var(--text-muted);">Sync Rate</div>
+                </div>
+            </div>
+            <div class="card" style="flex:1;">
+                <div style="font-size:11px; font-weight:700; margin-bottom:8px;">Recent Studio Production</div>
+                <div style="font-size:10px; padding:6px; background:var(--app-bg); border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between;">
+                    <span>🍗 Honey Mustard Salmon</span>
+                    <span style="color:var(--primary); font-weight:700;">Ready</span>
+                </div>
+                <div style="font-size:10px; padding:6px; background:var(--app-bg); border-radius:6px; display:flex; justify-content:space-between;">
+                    <span>🥩 Garlic Parmesan Tenders</span>
+                    <span style="color:#10B981; font-weight:700;">Published</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const theme = urlParams.get('theme') || '1';
+        document.body.className = 'theme-' + theme;
+    </script>
+</body>
+</html>

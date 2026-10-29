@@ -4,7 +4,7 @@
             
             <!-- Brand -->
             <div class="sidebar-brand">
-                <img src="assets/images/logo.png" alt="Recipe Studio" style="width:38px; height:38px; border-radius:10px; object-fit:cover; box-shadow:0 3px 10px rgba(16, 185, 129, 0.35);">
+                <img src="assets/images/logo.png" alt="Recipe Studio" style="width:38px; height:38px; border-radius:10px; object-fit:cover; box-shadow:0 3px 10px rgba(194, 65, 12, 0.35);">
                 <div>
                     <div class="sidebar-brand-text">Recipe Studio</div>
                     <div class="sidebar-brand-sub">Unified Multi-App Hub</div>
@@ -138,7 +138,7 @@
             </div>
 
             <!-- Footer -->
-            <div style="padding:14px 18px; border-top:1px solid #E2E8F0; font-size:11px; color:#94A3B8; margin-top:auto;">
+            <div style="padding:14px 18px; border-top:1px solid #E7E5E4; font-size:11px; color:#A8A29E; margin-top:auto;">
                 <div><?php echo $copyright; ?></div>
                 <div style="margin-top:2px;"><b>Version: </b> <?php echo $app_version; ?></div>
             </div>

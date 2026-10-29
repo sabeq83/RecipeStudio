@@ -63,14 +63,14 @@ $productLabels = [
     <!-- TOP MOCKUP NAVIGATOR BAR -->
     <div class="mockup-switcher-bar">
         <div class="mockup-switcher-title">
-            <i class="material-icons" style="color:#10B981; font-size:20px;">restaurant_menu</i>
+            <i class="material-icons" style="color:#EA580C; font-size:20px;">restaurant_menu</i>
             <span style="font-weight:800; letter-spacing:0.3px;">Recipe Studio</span>
-            <span class="badge-pill-top" style="background:#1E293B; border:1px solid #334155;">Unified Hub</span>
+            <span class="badge-pill-top">Unified Hub</span>
         </div>
 
         <!-- PRODUCT CONTEXT SWITCHER -->
-        <div style="display:flex; align-items:center; gap:6px; margin:0 12px; background:rgba(15,23,42,0.6); padding:4px 8px; border-radius:20px; border:1px solid #334155;">
-            <span style="font-size:10px; color:#94A3B8; font-weight:700; text-transform:uppercase; margin-right:4px;">App:</span>
+        <div style="display:flex; align-items:center; gap:6px; margin:0 12px; background:rgba(41,37,36,0.7); padding:4px 8px; border-radius:20px; border:1px solid #44403C;">
+            <span style="font-size:10px; color:#A8A29E; font-weight:700; text-transform:uppercase; margin-right:4px;">App:</span>
             <?php foreach ($productLabels as $pCode => $pMeta): 
                 $isActive = ($activeProduct === $pCode);
             ?>

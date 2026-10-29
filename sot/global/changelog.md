@@ -1,5 +1,11 @@
 # Changelog
 
+## V3.1.0 — Redesign Tema Warna Nordic Warm (29/10/2026)
+- Redesign tema warna Recipe Studio ke palet Nordic Warm (Terracotta & Sand Warm)
+- Pembaruan tokens CSS airfry-suite.css dan airfry-theme.css
+- Harmonisasi topbar espresso, sidebar oat, kartu konten, dan stepper wizard
+- Pembaruan SOP pada AGENTS.md untuk kebijakan pengujian browser diserahkan ke pengguna
+
 ## [3.0.0] - 2026-10-29
 ### Rilis Perdana Recipe Studio V3 (Unified Multi-Product Hub)
 - **Unified Multi-Product Hub**: Menggabungkan ekosistem aplikasi AirFryer (EN), Nusa Saji (ID), dan ProteinPrep (MealPrep) dalam 1 webadmin terpadu.

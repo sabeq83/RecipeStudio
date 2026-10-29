@@ -1,6 +1,6 @@
 {
   "name": "recipe-studio",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Recipe Studio V3 - Unified Multi-Product Production Hub (AirFryer, Nusa Saji, ProteinPrep)",
   "private": true,
   "scripts": {

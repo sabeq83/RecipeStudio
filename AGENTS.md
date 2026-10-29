@@ -50,3 +50,11 @@ npm run deploy:macmini:status
 ```bash
 npm run deploy:macmini:rollback
 ```
+
+---
+
+## 4. Kebijakan Pengujian Antarmuka (Browser Testing)
+* **DILARANG** menjalankan testing browser otomatis (seperti `browser_subagent` atau subagent browser otomatis lainnya) untuk pengujian UI/UX dan mockup visual.
+* Seluruh pengujian tampilan antarmuka, interaksi visual, dan review browser **WAJIB diserahkan sepenuhnya kepada User**.
+* Agen bertugas memvalidasi kebenaran kode (sintaks PHP, validitas CSS/JS), menyediakan file & URL lokal (misal: `http://127.0.0.1:8088/...`), serta memberikan panduan poin verifikasi yang ringkas dan jelas kepada User.
+

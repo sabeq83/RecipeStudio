@@ -1,25 +1,26 @@
 :root {
-            --af-flame: #F97316;
-            --af-flame-dark: #EA580C;
-            --af-flame-soft: #FFF7ED;
-            --af-amber: #F59E0B;
-            --af-indigo: #6366F1;
-            --af-indigo-dark: #4F46E5;
-            --af-indigo-soft: #EEF2FF;
-            --af-slate-bg: #F8FAFC;
+            /* Nordic Warm Brand Design Tokens */
+            --af-flame: #C2410C;
+            --af-flame-dark: #9A3412;
+            --af-flame-soft: #FFF1EB;
+            --af-amber: #B45309;
+            --af-indigo: #78350F;
+            --af-indigo-dark: #44403C;
+            --af-indigo-soft: #FEF3C7;
+            --af-slate-bg: #F5F1EB;
             --af-surface: #FFFFFF;
-            --af-dark: #0F172A;
-            --af-dark-card: #1E293B;
-            --af-border: #E2E8F0;
-            --af-muted: #64748B;
-            --af-text: #1E293B;
-            --af-success: #10B981;
-            --af-danger: #EF4444;
+            --af-dark: #1C1917;
+            --af-dark-card: #292524;
+            --af-border: #E7E5E4;
+            --af-muted: #78716C;
+            --af-text: #44403C;
+            --af-success: #15803D;
+            --af-danger: #B91C1C;
             --af-radius-lg: 16px;
             --af-radius-md: 10px;
-            --af-shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-            --af-shadow-md: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
-            --af-shadow-lg: 0 12px 30px -4px rgba(15, 23, 42, 0.12);
+            --af-shadow-sm: 0 1px 3px rgba(41,37,36,0.04);
+            --af-shadow-md: 0 4px 20px -2px rgba(41, 37, 36, 0.06);
+            --af-shadow-lg: 0 12px 30px -4px rgba(41, 37, 36, 0.10);
         }
 
         * {
@@ -42,30 +43,30 @@
             left: 0;
             right: 0;
             height: 48px;
-            background: #0B1120;
-            color: #94A3B8;
+            background: #1C1917;
+            color: #A8A29E;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
             font-size: 13px;
             z-index: 1000;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid #292524;
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
         }
         .mockup-switcher-title {
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #F8FAFC;
+            color: #FAF8F5;
             font-weight: 800;
             font-size: 13px;
             flex-shrink: 0;
         }
         .mockup-switcher-title .badge-pill-top {
-            background: rgba(249, 115, 22, 0.15);
-            color: #FB923C;
-            border: 1px solid rgba(249, 115, 22, 0.35);
+            background: rgba(194, 65, 12, 0.2);
+            color: #FDBA74;
+            border: 1px solid rgba(194, 65, 12, 0.4);
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 10px;
@@ -129,14 +130,14 @@
             background: var(--af-flame);
             color: #FFFFFF;
             border-color: var(--af-flame);
-            box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35);
+            box-shadow: 0 2px 6px rgba(194, 65, 12, 0.35);
             font-weight: 700;
         }
 
         /* SIDEBAR */
         .sidebar {
             width: 260px;
-            background: var(--af-surface);
+            background: #FAF8F5;
             border-right: 1px solid var(--af-border);
             display: flex;
             flex-direction: column;
@@ -149,13 +150,13 @@
         }
         .sidebar-brand {
             height: 64px;
-            background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+            background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
             display: flex;
             align-items: center;
             padding: 0 20px;
             gap: 12px;
             color: #FFFFFF;
-            box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);
+            box-shadow: 0 2px 8px rgba(154, 52, 18, 0.25);
         }
         .sidebar-brand-icon {
             width: 36px;
@@ -181,17 +182,17 @@
         }
         .sidebar-user {
             padding: 16px 20px;
-            border-bottom: 1px solid var(--af-border);
+            border-bottom: 2px solid var(--af-flame);
             display: flex;
             align-items: center;
             gap: 12px;
-            background: #FAFAFA;
+            background: #292524;
         }
         .sidebar-avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #6366F1, #8B5CF6);
+            background: linear-gradient(135deg, #C2410C, #78350F);
             color: white;
             display: flex;
             align-items: center;
@@ -202,11 +203,11 @@
         .sidebar-user-name {
             font-size: 13px;
             font-weight: 700;
-            color: var(--af-dark);
+            color: #FAF8F5;
         }
         .sidebar-user-role {
             font-size: 11px;
-            color: var(--af-muted);
+            color: #A8A29E;
         }
         .sidebar-menu {
             padding: 16px 12px;
@@ -226,7 +227,7 @@
             gap: 12px;
             padding: 10px 14px;
             border-radius: 8px;
-            color: #475569;
+            color: #57534E;
             text-decoration: none;
             font-size: 13px;
             font-weight: 600;
@@ -235,21 +236,21 @@
             transition: all 0.2s ease;
         }
         .menu-item:hover {
-            background: var(--af-flame-soft);
-            color: var(--af-flame-dark);
+            background: #F5EFEB;
+            color: var(--af-flame);
         }
         .menu-item.active {
-            background: var(--af-flame-soft);
-            color: var(--af-flame-dark);
+            background: #F5EFEB;
+            color: var(--af-flame);
             font-weight: 700;
         }
         .menu-item.active i {
-            color: var(--af-flame-dark);
+            color: var(--af-flame);
         }
         .menu-badge {
             margin-left: auto;
-            background: #F1F5F9;
-            color: #64748B;
+            background: #E7E5E4;
+            color: #57534E;
             font-size: 10px;
             font-weight: 700;
             padding: 2px 7px;
@@ -1333,9 +1334,9 @@ body .navbar {
 
 /* SIDEBAR OVERRIDES */
 .sidebar {
-    background: #FFFFFF !important;
-    border-right: 1px solid #E2E8F0 !important;
-    box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04) !important;
+    background: #FAF8F5 !important;
+    border-right: 1px solid #E7E5E4 !important;
+    box-shadow: 2px 0 12px rgba(41, 37, 36, 0.04) !important;
     width: 260px !important;
     position: fixed !important;
     top: 48px !important;
@@ -1348,13 +1349,13 @@ body .navbar {
 
 .sidebar .sidebar-brand {
     height: 60px !important;
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%) !important;
+    background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%) !important;
     display: flex !important;
     align-items: center !important;
     padding: 0 18px !important;
     gap: 12px !important;
     color: #FFFFFF !important;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(154, 52, 18, 0.25) !important;
 }
 
 .sidebar .sidebar-brand-icon {
@@ -1381,23 +1382,23 @@ body .navbar {
     font-size: 10.5px !important;
     opacity: 0.9 !important;
     font-weight: 500 !important;
-    color: #FFF7ED !important;
+    color: #FFF1EB !important;
 }
 
 .sidebar .sidebar-user {
     padding: 14px 18px !important;
-    border-bottom: 1px solid #E2E8F0 !important;
+    border-bottom: 2px solid #C2410C !important;
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
-    background: #FAFAFA !important;
+    background: #292524 !important;
 }
 
 .sidebar .sidebar-avatar {
     width: 38px !important;
     height: 38px !important;
     border-radius: 50% !important;
-    background: linear-gradient(135deg, #6366F1, #8B5CF6) !important;
+    background: linear-gradient(135deg, #C2410C, #78350F) !important;
     color: white !important;
     display: flex !important;
     align-items: center !important;
@@ -1410,7 +1411,7 @@ body .navbar {
 .sidebar .sidebar-user-name {
     font-size: 13px !important;
     font-weight: 700 !important;
-    color: #0F172A !important;
+    color: #FAF8F5 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -1418,7 +1419,7 @@ body .navbar {
 
 .sidebar .sidebar-user-role {
     font-size: 11px !important;
-    color: #64748B !important;
+    color: #A8A29E !important;
 }
 
 .sidebar .sidebar-menu {
@@ -1429,7 +1430,7 @@ body .navbar {
 .sidebar .menu-header {
     font-size: 10px !important;
     font-weight: 800 !important;
-    color: #94A3B8 !important;
+    color: #78716C !important;
     letter-spacing: 1px !important;
     padding: 10px 12px 6px 12px !important;
     text-transform: uppercase !important;
@@ -1441,7 +1442,7 @@ body .navbar {
     gap: 10px !important;
     padding: 8px 12px !important;
     border-radius: 8px !important;
-    color: #475569 !important;
+    color: #57534E !important;
     text-decoration: none !important;
     font-size: 12.5px !important;
     font-weight: 600 !important;
@@ -1452,33 +1453,33 @@ body .navbar {
 
 .sidebar .menu-item i {
     font-size: 18px !important;
-    color: #64748B !important;
+    color: #78716C !important;
     flex-shrink: 0 !important;
 }
 
 .sidebar .menu-item:hover {
-    background: #FFF7ED !important;
-    color: #EA580C !important;
+    background: #F5EFEB !important;
+    color: #C2410C !important;
 }
 
 .sidebar .menu-item:hover i {
-    color: #EA580C !important;
+    color: #C2410C !important;
 }
 
 .sidebar .menu-item.active {
-    background: #FFF7ED !important;
-    color: #EA580C !important;
+    background: #F5EFEB !important;
+    color: #C2410C !important;
     font-weight: 700 !important;
 }
 
 .sidebar .menu-item.active i {
-    color: #EA580C !important;
+    color: #C2410C !important;
 }
 
 .sidebar .menu-badge {
     margin-left: auto !important;
-    background: #FED7AA !important;
-    color: #C2410C !important;
+    background: #E7E5E4 !important;
+    color: #57534E !important;
     font-size: 9.5px !important;
     font-weight: 800 !important;
     padding: 2px 6px !important;
@@ -1490,7 +1491,7 @@ section.content {
     margin: 48px 0 0 260px !important;
     padding: 24px 32px 40px 32px !important;
     min-height: calc(100vh - 48px) !important;
-    background: #F8FAFC !important;
+    background: #F5F1EB !important;
     width: calc(100% - 260px) !important;
     max-width: calc(100% - 260px) !important;
     box-sizing: border-box !important;
@@ -1511,14 +1512,14 @@ section.content > .container-fluid {
 .card, .page-card {
     background: #FFFFFF !important;
     border-radius: 12px !important;
-    border: 1px solid #E2E8F0 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid #E7E5E4 !important;
+    box-shadow: 0 1px 3px rgba(41, 37, 36, 0.04) !important;
     margin-bottom: 24px !important;
 }
 
 .card .header, .page-card-header {
     padding: 16px 20px !important;
-    border-bottom: 1px solid #E2E8F0 !important;
+    border-bottom: 1px solid #E7E5E4 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
@@ -1527,7 +1528,7 @@ section.content > .container-fluid {
 .card .header h2, .page-card-title {
     font-size: 14px !important;
     font-weight: 800 !important;
-    color: #0F172A !important;
+    color: #1C1917 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
     display: flex !important;
@@ -1545,38 +1546,38 @@ section.content > .container-fluid {
     background: transparent !important;
     padding: 0 0 16px 0 !important;
     font-size: 12.5px !important;
-    color: #64748B !important;
+    color: #78716C !important;
     display: flex !important;
     align-items: center !important;
     gap: 6px !important;
 }
 
 .breadcrumb a, .page-breadcrumb a {
-    color: #F97316 !important;
+    color: #C2410C !important;
     text-decoration: none !important;
     font-weight: 600 !important;
 }
 
 /* FORM CONTROLS */
 .form-control {
-    border: 1px solid #CBD5E1 !important;
+    border: 1px solid #D6D3D1 !important;
     border-radius: 8px !important;
     padding: 9px 12px !important;
     font-size: 13px !important;
-    color: #1E293B !important;
+    color: #44403C !important;
     box-shadow: none !important;
     transition: all 0.15s ease !important;
     background: #FFFFFF !important;
 }
 
 .form-control:focus {
-    border-color: #F97316 !important;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
+    border-color: #C2410C !important;
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.15) !important;
 }
 
 /* BUTTONS */
 button.button, .btn-primary, button[type="submit"].btn-offset {
-    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%) !important;
+    background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%) !important;
     color: #FFFFFF !important;
     border: none !important;
     border-radius: 8px !important;
@@ -1584,12 +1585,12 @@ button.button, .btn-primary, button[type="submit"].btn-offset {
     font-size: 12.5px !important;
     font-weight: 700 !important;
     letter-spacing: 0.5px !important;
-    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35) !important;
+    box-shadow: 0 2px 6px rgba(194, 65, 12, 0.35) !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
 }
 
 button.button:hover, .btn-primary:hover, button[type="submit"].btn-offset:hover {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.45) !important;
+    box-shadow: 0 4px 12px rgba(194, 65, 12, 0.45) !important;
 }
