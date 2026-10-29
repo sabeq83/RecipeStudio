@@ -70,6 +70,12 @@
                     <span class="menu-badge">3 Tools</span>
                 </a>
 
+                <a href="recipe-generator.php" class="menu-item <?php if ($script == 'recipe-generator.php') echo 'active'; ?>">
+                    <i class="material-icons" style="color:#38BDF8;">auto_stories</i>
+                    <span>Batch Recipe Generator</span>
+                    <span class="menu-badge" style="background:#0284C7;">AI</span>
+                </a>
+
                 <a href="ai-config.php" class="menu-item <?php if ($script == 'ai-config.php') echo 'active'; ?>">
                     <i class="material-icons" style="color:var(--af-indigo);">tune</i>
                     <span>Konfigurasi AI Pool</span>

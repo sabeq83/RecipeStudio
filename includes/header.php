@@ -103,6 +103,9 @@ $productLabels = [
             <a href="ai-generator.php" class="mockup-tab-btn <?= in_array($current_script, ['ai-generator.php', 'importer.php']) ? 'active' : '' ?>">
                 <i class="material-icons" style="color:#F59E0B;">auto_awesome</i> AI Studio Hub
             </a>
+            <a href="recipe-generator.php" class="mockup-tab-btn <?= $current_script == 'recipe-generator.php' ? 'active' : '' ?>">
+                <i class="material-icons" style="color:#38BDF8;">auto_stories</i> Recipe Generator
+            </a>
             <a href="ai-config.php" class="mockup-tab-btn <?= $current_script == 'ai-config.php' ? 'active' : '' ?>">
                 <i class="material-icons" style="color:#818CF8;">tune</i> Konfigurasi AI Pool
             </a>
