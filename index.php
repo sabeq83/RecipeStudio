@@ -73,6 +73,10 @@
         <meta name="description" content="">
         <meta name="keywords" content="">
         <title><?php echo $app_name; ?></title>
+        <!-- FAVICON -->
+        <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon-16x16.png">
+        <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png">
         <?php include_once ('assets/css.min.php'); ?>
     </head>
 
@@ -83,9 +87,12 @@
                 <div class="body">
                     <form id="form_validation" method="post">
                         <center>
-                            <img src="assets/images/logo.png" width="96px" height="96px" style="border-radius:18px; box-shadow:0 8px 24px rgba(234, 88, 12, 0.22); margin-bottom:8px;">
+                            <img src="assets/images/logo.png" width="96px" height="96px" style="border-radius:20px; box-shadow:0 10px 28px rgba(16, 185, 129, 0.28); margin-bottom:10px; object-fit:cover;">
                             <br>
-                            <div class="custom-padding1"><div class="uppercase" style="font-weight:800; font-size:18px; color:#1E293B; letter-spacing:-0.5px;"><?php echo $app_name; ?></div></div>
+                            <div class="custom-padding1">
+                                <div class="uppercase" style="font-weight:800; font-size:20px; color:#0F172A; letter-spacing:-0.3px;"><?php echo $app_name; ?></div>
+                                <div style="font-size:11.5px; color:#64748B; font-weight:600; margin-top:2px;">Unified Multi-Product Hub</div>
+                            </div>
                             <div class="custom-padding2 col-pink"><?php echo isset($error['failed']) ? $error['failed'] : '';?></div>
                         </center>
                         

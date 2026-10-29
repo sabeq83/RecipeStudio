@@ -4,7 +4,7 @@
             
             <!-- Brand -->
             <div class="sidebar-brand">
-                <img src="assets/images/logo.png" alt="AirFry Eats" style="width:36px; height:36px; border-radius:8px; object-fit:cover; box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+                <img src="assets/images/logo.png" alt="Recipe Studio" style="width:38px; height:38px; border-radius:10px; object-fit:cover; box-shadow:0 3px 10px rgba(16, 185, 129, 0.35);">
                 <div>
                     <div class="sidebar-brand-text">Recipe Studio</div>
                     <div class="sidebar-brand-sub">Unified Multi-App Hub</div>
