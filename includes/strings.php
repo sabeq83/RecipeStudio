@@ -1,7 +1,7 @@
 <?php
 
 	$app_name = "Recipe Studio";
-	$app_version = "1.0.0 (Unified)";
+	$app_version = "3.0.0 (Unified)";
 	$copyright = "Copyright © 2026 Recipe Studio";
 	$menu_dashboard = "Dashboard";
 	$menu_category = "Manage Category";

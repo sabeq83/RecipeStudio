@@ -22,7 +22,7 @@ function getArg(flag) {
 }
 
 async function main() {
-  console.log('🚀 === ASISTEN RILIS OTOMATIS AIRFRY STUDIO V2 === 🚀\n');
+  console.log('🚀 === ASISTEN RILIS OTOMATIS RECIPE STUDIO V3 === 🚀\n');
 
   try {
     // 1. Read package.json
@@ -180,7 +180,7 @@ async function main() {
 function bumpVersion(version, type) {
   const parts = version.split('.').map(Number);
   if (parts.length !== 3 || parts.some(isNaN)) {
-    return '2.0.0';
+    return '3.0.0';
   }
   let [major, minor, patch] = parts;
   if (type === 'major') {
