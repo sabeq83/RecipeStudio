@@ -101,6 +101,7 @@ if (defined('ENABLE_STUDIO_FEATURES') && !ENABLE_STUDIO_FEATURES) {
 require_once('importer/UrlValidator.php');
 require_once('importer/parsers/ParserInterface.php');
 require_once('importer/parsers/BbcFoodParser.php');
+require_once('importer/parsers/JsonLdRecipeParser.php');
 require_once('importer/HtmlSanitizer.php');
 require_once('importer/ImageDownloader.php');
 require_once('importer/DatabaseMigration.php');
