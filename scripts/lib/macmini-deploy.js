@@ -7,7 +7,7 @@ const CONFIG = {
   releasesRoot: '/Users/masbenu/recipe_studio/releases',
   sharedRoot: '/Users/masbenu/recipe_studio/shared',
   currentLink: '/Users/masbenu/recipe_studio/current',
-  legacyRoot: '/Users/masbenu/recipe_studio/app',
+  legacyRoot: '/Users/masbenu/airfry_studio_v2/shared',
   repositoryUrl: 'https://github.com/sabeq83/RecipeStudio.git',
   pm2AppName: 'recipe-studio',
   port: 8090,
@@ -119,7 +119,7 @@ pm2 save
 
 echo "-> Verifikasi HTTP health check..."
 sleep 2
-http_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/video-generator.php" || true)"
+http_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/importer.php" || true)"
 echo "HTTP response code: $http_code"
 if test "$http_code" != "200" && test "$http_code" != "302"; then
   echo "⚠️ Peringatan: Health check mengembalikan kode $http_code (bukan 200/302)."
@@ -209,7 +209,7 @@ echo "-> Menjalankan post-activation HTTP health check..."
 health_passed=false
 for i in 1 2 3 4 5; do
   sleep 1
-  code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/video-generator.php" || true)"
+  code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/importer.php" || true)"
   if test "$code" = "200" || test "$code" = "302"; then
     health_passed=true
     echo "✓ Health check berhasil pada percobaan ke-$i (HTTP $code)!"
