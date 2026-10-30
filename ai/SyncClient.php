@@ -284,7 +284,7 @@ class SyncClient
     public function pingCustom(string $url, string $token, string $label = 'Target Server'): array
     {
         $url = trim($url);
-        $token = trim($token);
+        $cleanToken = preg_replace('/^Bearer\s+/i', '', trim($token));
 
         if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
             return ['success' => false, 'error' => "URL endpoint tidak valid: '{$url}'"];
@@ -297,7 +297,11 @@ class SyncClient
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => [
                 'action' => 'ping',
-                'sync_token' => $token
+                'sync_token' => $cleanToken
+            ],
+            CURLOPT_HTTPHEADER => [
+                "Authorization: Bearer {$cleanToken}",
+                "X-Sync-Token: {$cleanToken}"
             ],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 8,
@@ -408,9 +412,11 @@ class SyncClient
             $token = $this->getSecretToken();
         }
 
+        $cleanToken = preg_replace('/^Bearer\s+/i', '', trim($token));
+
         $postFields = [
             'action' => 'push_recipe',
-            'sync_token' => $token,
+            'sync_token' => $cleanToken,
             'local_recipe_id' => $recipeId,
             'recipe_title' => $recipe['recipe_title'] ?? '',
             'recipe_time' => $recipe['recipe_time'] ?? '',
@@ -471,6 +477,10 @@ class SyncClient
             CURLOPT_URL => $url,
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $postFields,
+            CURLOPT_HTTPHEADER => [
+                "Authorization: Bearer {$cleanToken}",
+                "X-Sync-Token: {$cleanToken}"
+            ],
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => $curlTimeout,
             CURLOPT_CONNECTTIMEOUT => 15,

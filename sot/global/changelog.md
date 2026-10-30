@@ -1,5 +1,12 @@
 # Changelog
 
+## V3.2.1 — Fix Batch Orchestrator G-Labs Async, Scene Setting & Draft Publish (30/10/2026)
+- Migrasi Batch Orchestrator ke alur murni G-Labs asinkron dengan polling live terminal dan jeda acak anti-bot
+- Perbaikan parsing bahan dan instruksi draf Cookpad dari kolom ingredients_json dan instructions_json
+- Penyempurnaan deskripsi setting lokasi background dan plating eksplisit di prompt builder Gemini untuk setiap preset gaya foto
+- Koreksi undefined key array bahan dan instruksi pada batch publish
+- Perbaikan binding parameter query riwayat generasi AI
+
 ## V3.2.0 — Multi-App Live Sync & AI Config Exclusive Accordion (30/10/2026)
 - Single-Column dan Exclusive Single-Open Accordion di ai-config.php dengan default tertutup
 - Multi-App Live Web Hosting Sync Manager dengan Bearer Token Generator per baris

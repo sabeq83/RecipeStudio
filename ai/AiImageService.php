@@ -546,16 +546,16 @@ class AiImageService
         $savedFilename = '';
         $usedEngine = '';
 
-        // Opsi 1: Coba G-Labs jika key terisi
+        // Eksekusi murni G-Labs jika API key terisi
         if (!empty($apiKey)) {
             $taskRes = $this->submitImageTask($importId, $prompt, $stylePreset, $aspectRatio, $model);
             if (!empty($taskRes['success']) && !empty($taskRes['task_id'])) {
                 $taskId = $taskRes['task_id'];
                 $genId = $taskRes['generation_id'] ?? null;
                 $pollStart = time();
-                // Polling sinkron maksimal 30 detik
-                while (time() - $pollStart < 30) {
-                    sleep(2);
+                // Polling sinkron hingga 90 detik untuk proses render komplit di G-Labs
+                while (time() - $pollStart < 90) {
+                    sleep(3);
                     $pollRes = $this->pollAndDownload($taskId, $genId);
                     if (!empty($pollRes['success']) && ($pollRes['status'] ?? '') === 'completed' && !empty($pollRes['image_filename'])) {
                         $savedFilename = $pollRes['image_filename'];
@@ -566,27 +566,6 @@ class AiImageService
                     if (($pollRes['status'] ?? '') === 'failed') {
                         break;
                     }
-                }
-            }
-        }
-
-        // Opsi 2: Fallback ke Pollinations AI jika G-Labs offline atau belum menghasilkan file
-        if (!$imageSaved) {
-            $pollinRes = $this->generateWithPollinations($prompt, $aspectRatio);
-            if (!empty($pollinRes['success']) && !empty($pollinRes['image_filename'])) {
-                $savedFilename = $pollinRes['image_filename'];
-                $imageSaved = true;
-                $usedEngine = 'Pollinations Flux Engine';
-
-                // Catat ke tbl_ai_generations
-                $stmt = $this->db->prepare("INSERT INTO `tbl_ai_generations` 
-                    (recipe_id, task_id, prompt, style_preset, model_used, aspect_ratio, status, image_filename) 
-                    VALUES (?, ?, ?, ?, 'pollinations_flux', ?, 'completed', ?)");
-                if ($stmt) {
-                    $taskIdVal = 'pollin_' . time() . '_' . substr(md5($prompt), 0, 6);
-                    $stmt->bind_param('issssss', $importId, $taskIdVal, $prompt, $stylePreset, $aspectRatio, $savedFilename);
-                    $stmt->execute();
-                    $stmt->close();
                 }
             }
         }

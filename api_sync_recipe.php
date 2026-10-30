@@ -43,18 +43,32 @@ function send_json($data, $httpCode = 200) {
 // Token ini harus sama persis antara Local Studio (Mac) dan Live Hosting
 define('AIRFRY_SYNC_SECRET_TOKEN', 'airfry_sync_sec_99a8b7c6d5e4f3a2b1');
 
-// 2. Authentication Check
+// 2. Authentication Check (Robust Bearer & POST token parser)
 $providedToken = $_POST['sync_token'] ?? $_SERVER['HTTP_X_SYNC_TOKEN'] ?? '';
-if (empty($providedToken) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    if (preg_match('/Bearer\s+(\S+)/i', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
-        $providedToken = $matches[1];
+
+if (empty($providedToken)) {
+    $rawAuth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+    if (empty($rawAuth) && function_exists('getallheaders')) {
+        $headers = getallheaders();
+        $rawAuth = $headers['Authorization'] ?? $headers['authorization'] ?? $headers['X-Sync-Token'] ?? $headers['x-sync-token'] ?? '';
+    }
+    if (!empty($rawAuth)) {
+        if (preg_match('/Bearer\s+(\S+)/i', $rawAuth, $matches)) {
+            $providedToken = $matches[1];
+        } else {
+            $providedToken = $rawAuth;
+        }
     }
 }
 
-if (!hash_equals(AIRFRY_SYNC_SECRET_TOKEN, (string)$providedToken)) {
+// Normalisasi: buang spasi dan prefix "Bearer " jika ada di token yang dikirim maupun di token yang didefinisikan
+$cleanProvided = preg_replace('/^Bearer\s+/i', '', trim((string)$providedToken));
+$cleanExpected = preg_replace('/^Bearer\s+/i', '', trim((string)AIRFRY_SYNC_SECRET_TOKEN));
+
+if (empty($cleanProvided) || !hash_equals($cleanExpected, $cleanProvided)) {
     send_json([
         'success' => false,
-        'error' => 'Akses ditolak: Token sinkronisasi (sync_token) tidak valid.'
+        'error' => 'Akses ditolak: Token sinkronisasi (Bearer token) tidak cocok atau tidak dikirimkan.'
     ], 401);
 }
 

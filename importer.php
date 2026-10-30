@@ -324,9 +324,10 @@ if (isset($_REQUEST['ajax_action'])) {
                 ]);
                 exit;
 
+            case 'orchestrate_scrape_and_polish':
             case 'orchestrate_single_url':
-                @set_time_limit(360);
-                @ini_set('max_execution_time', '360');
+                @set_time_limit(180);
+                @ini_set('max_execution_time', '180');
                 $url = trim($_POST['url'] ?? '');
                 if (empty($url)) {
                     throw new Exception('URL sumber tidak boleh kosong.');
@@ -352,10 +353,21 @@ if (isset($_REQUEST['ajax_action'])) {
                     throw new Exception('Draf resep #' . $importId . ' tidak ditemukan.');
                 }
 
-                // Step 2: AI Polish Teks (Menggunakan prompt terpusat di GeminiClient via AiImageService)
+                // Step 2: AI Polish Teks & Prompt Engineering (Gaya Foto & Rasio disertakan ke Gemini)
                 $aiService = new Ai\AiImageService($connect);
-                $rawIngredients = $draft['ingredients'] ?? [];
-                $rawInstructions = $draft['instructions'] ?? [];
+                $rawIngredients = [];
+                if (!empty($draft['ingredients_json'])) {
+                    $rawIngredients = is_array($draft['ingredients_json']) ? $draft['ingredients_json'] : (json_decode($draft['ingredients_json'], true) ?: []);
+                } elseif (!empty($draft['ingredients'])) {
+                    $rawIngredients = is_array($draft['ingredients']) ? $draft['ingredients'] : (json_decode($draft['ingredients'], true) ?: []);
+                }
+
+                $rawInstructions = [];
+                if (!empty($draft['instructions_json'])) {
+                    $rawInstructions = is_array($draft['instructions_json']) ? $draft['instructions_json'] : (json_decode($draft['instructions_json'], true) ?: []);
+                } elseif (!empty($draft['instructions'])) {
+                    $rawInstructions = is_array($draft['instructions']) ? $draft['instructions'] : (json_decode($draft['instructions'], true) ?: []);
+                }
 
                 $recipeData = [
                     'recipe_title' => $draft['recipe_title'] ?? '',
@@ -378,7 +390,7 @@ if (isset($_REQUEST['ajax_action'])) {
                 $polishedSummary = $draft['summary'];
                 $polishedIngredients = $rawIngredients;
                 $polishedInstructions = $rawInstructions;
-                $imagePrompt = 'Commercial food photography of ' . $polishedTitle . ', ' . $stylePreset . ', 8k resolution';
+                $imagePrompt = 'Commercial food photography of ' . $polishedTitle . ', ' . $stylePreset . ', ' . $aspectRatio . ' composition, 8k resolution, authentic culinary lighting';
 
                 if (!empty($polishRes['success']) && !empty($polishRes['data'])) {
                     $pData = $polishRes['data'];
@@ -417,15 +429,6 @@ if (isset($_REQUEST['ajax_action'])) {
                 ];
                 $importerService->saveDraft($importId, $saveData);
 
-                // Step 3: Wajib Generate Foto AI Baru & Unik
-                $imageRes = $aiService->generateOrchestratorImage($importId, $imagePrompt, $stylePreset, $aspectRatio);
-                $finalImage = $draft['selected_image_url'] ?? '';
-                $imageEngine = 'Default';
-                if (!empty($imageRes['success']) && !empty($imageRes['image_filename'])) {
-                    $finalImage = $imageRes['image_filename'];
-                    $imageEngine = $imageRes['engine'] ?? 'AI Engine';
-                }
-
                 // Ambil draf terbaru
                 $updatedDraft = $importerService->getImportById($importId);
 
@@ -444,6 +447,8 @@ if (isset($_REQUEST['ajax_action'])) {
                     }
                 }
 
+                $originalImageUrl = !empty($updatedDraft['selected_image_url']) ? 'upload/' . basename($updatedDraft['selected_image_url']) : '';
+
                 echo safe_json_encode([
                     'success' => true,
                     'import_id' => $importId,
@@ -454,12 +459,17 @@ if (isset($_REQUEST['ajax_action'])) {
                     'prep_time' => $updatedDraft['prep_time'],
                     'cook_time' => $updatedDraft['cook_time'],
                     'servings' => $updatedDraft['servings'],
-                    'ingredients' => $updatedDraft['ingredients'] ?? $polishedIngredients,
-                    'instructions' => $updatedDraft['instructions'] ?? $polishedInstructions,
+                    'ingredients' => !empty($updatedDraft['ingredients_json']) 
+                        ? (is_array($updatedDraft['ingredients_json']) ? $updatedDraft['ingredients_json'] : (json_decode($updatedDraft['ingredients_json'], true) ?: [])) 
+                        : $polishedIngredients,
+                    'instructions' => !empty($updatedDraft['instructions_json']) 
+                        ? (is_array($updatedDraft['instructions_json']) ? $updatedDraft['instructions_json'] : (json_decode($updatedDraft['instructions_json'], true) ?: [])) 
+                        : $polishedInstructions,
                     'selected_image_url' => $updatedDraft['selected_image_url'],
-                    'image_url' => !empty($updatedDraft['selected_image_url']) ? 'upload/' . basename($updatedDraft['selected_image_url']) : '',
-                    'image_engine' => $imageEngine,
+                    'image_url' => $originalImageUrl,
                     'image_prompt' => $imagePrompt,
+                    'style_preset' => $stylePreset,
+                    'aspect_ratio' => $aspectRatio,
                     'status' => $updatedDraft['status'],
                     'source_url' => $url,
                 ]);
@@ -605,8 +615,8 @@ if (isset($_REQUEST['ajax_action'])) {
                             'cook_time' => $record['cook_time'],
                             'servings' => $record['servings'],
                             'summary' => $record['summary'],
-                            'ingredients_json' => $record['ingredients'],
-                            'instructions_json' => $record['instructions'],
+                            'ingredients_json' => $record['ingredients_json'] ?? ($record['ingredients'] ?? '[]'),
+                            'instructions_json' => $record['instructions_json'] ?? ($record['instructions'] ?? '[]'),
                             'selected_image_url' => $record['selected_image_url'],
                             'cat_id' => $catId,
                             'product_code' => $record['product_code'] ?? ($_SESSION['active_product'] ?? 'airfry')
@@ -1760,6 +1770,20 @@ include_once('includes/header.php');
                                         <option value="16:9">16:9 (Landscape)</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <!-- Human Delay (Anti-Bot / Anti-Scraping Ban) -->
+                            <div style="margin-top:12px; margin-bottom:12px;">
+                                <label style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; font-weight:700; color:#44403C; margin-bottom:4px;">
+                                    <span>Jeda Antrean (Anti-Bot / Human-Like):</span>
+                                    <span style="font-size:10.5px; color:#16A34A; font-weight:600;"><i class="material-icons" style="font-size:11px; vertical-align:middle;">shield</i> Aman</span>
+                                </label>
+                                <select id="batchDelayMode" class="form-control" style="border-radius:6px; font-size:12px; font-weight:600; border-color:#D6D3D1;">
+                                    <option value="random_2_5" selected>Acak 2 - 5 Detik (Sangat Direkomendasikan)</option>
+                                    <option value="random_5_10">Acak 5 - 10 Detik (Sangat Aman / Batch Besar)</option>
+                                    <option value="fixed_1">Cepat (1 Detik)</option>
+                                    <option value="none">Tanpa Jeda Tambahan (0.6 Detik)</option>
+                                </select>
                             </div>
 
                             <!-- Notice Box: Wajib Foto Baru -->
@@ -3400,6 +3424,7 @@ include_once('includes/header.php');
         const stylePreset = document.getElementById('batchStylePreset')?.value || 'Modern Fine Dining';
         const aspectRatio = document.getElementById('batchAspectRatio')?.value || '4:3';
         const productCode = document.getElementById('batchProductCode')?.value || 'airfry';
+        const batchDelayMode = document.getElementById('batchDelayMode')?.value || 'random_2_5';
 
         logTerminal('Memulai Batch Orchestrator untuk ' + validUrls.length + ' URL...', 'info');
 
@@ -3419,10 +3444,10 @@ include_once('includes/header.php');
             setStepPill(1); // Scrape
 
             try {
-                // Step 2 & 3 dijalankan di backend via orchestrate_single_url
+                // Step 1 & 2: Scrape & AI Polish (Gemini) dengan Gaya Foto AI dan Rasio terintegrasi
                 setStepPill(2); // AI Polish
                 const formData = new FormData();
-                formData.append('ajax_action', 'orchestrate_single_url');
+                formData.append('ajax_action', 'orchestrate_scrape_and_polish');
                 formData.append('csrf_token', CSRF_TOKEN);
                 formData.append('url', currentUrl);
                 formData.append('default_cat_id', defaultCatId);
@@ -3431,29 +3456,125 @@ include_once('includes/header.php');
                 formData.append('target_language', batchLanguage);
                 formData.append('product_code', productCode);
 
-                setStepPill(3); // Photo Studio
-                const res = await safeFetchJson('importer.php', { method: 'POST', body: formData });
-
-                if (res && res.success) {
-                    successCount++;
-                    batchResults.push(res);
-                    logTerminal('✓ Resep #' + currentIndex + ' berhasil: "' + res.recipe_title + '" (Foto AI ' + (res.image_engine || 'Generated') + ' siap).', 'success');
-                    renderBatchTableRow(res);
-                    updateBatchCounterBadge();
-                } else {
-                    failCount++;
-                    const errMsg = (res && res.error) ? res.error : 'Terjadi kegagalan pemrosesan';
-                    logTerminal('✕ Resep #' + currentIndex + ' gagal: ' + errMsg, 'error');
-                    renderBatchErrorRow(currentUrl, errMsg);
+                const polishRes = await safeFetchJson('importer.php', { method: 'POST', body: formData });
+                if (!polishRes || !polishRes.success) {
+                    throw new Error(polishRes?.error || 'Gagal mengambil atau memoles data resep.');
                 }
+
+                logTerminal('✓ Draf dipoles Gemini: "' + polishRes.recipe_title + '"', 'success');
+                logTerminal('  Prompt Visual AI: ' + polishRes.image_prompt, 'info');
+
+                // Step 3: Photo Studio AI (Murni G-Labs Asinkron Polling)
+                setStepPill(3); // Photo Studio
+                logTerminal('⚡ Mengirim task foto masakan ke G-Labs (Rasio: ' + aspectRatio + ', Gaya: ' + stylePreset + ')...', 'info');
+
+                const glabsForm = new FormData();
+                glabsForm.append('ajax_action', 'submit_glabs_task');
+                glabsForm.append('csrf_token', CSRF_TOKEN);
+                glabsForm.append('import_id', polishRes.import_id);
+                glabsForm.append('prompt', polishRes.image_prompt);
+                glabsForm.append('style_preset', stylePreset);
+                glabsForm.append('aspect_ratio', aspectRatio);
+                glabsForm.append('model', ''); // Default G-Labs model
+
+                const submitRes = await safeFetchJson('importer.php', { method: 'POST', body: glabsForm });
+                let finalImageUrl = polishRes.image_url || '';
+                let finalImageEngine = 'Original';
+
+                if (submitRes && submitRes.success && submitRes.task_id) {
+                    const taskId = submitRes.task_id;
+                    const genId = submitRes.generation_id || 0;
+                    logTerminal('  Task ID: ' + taskId + ' terdaftar. Menunggu antrean render G-Labs...', 'info');
+
+                    // Polling berkala ke G-Labs tiap 3 detik (maksimal 40x / 120 detik)
+                    let pollCount = 0;
+                    let pollSuccess = false;
+                    let seconds = 0;
+
+                    while (pollCount < 40 && !pollSuccess) {
+                        await new Promise(r => setTimeout(r, 3000));
+                        pollCount++;
+                        seconds += 3;
+
+                        const pollForm = new FormData();
+                        pollForm.append('ajax_action', 'poll_glabs_task');
+                        pollForm.append('csrf_token', CSRF_TOKEN);
+                        pollForm.append('task_id', taskId);
+                        pollForm.append('generation_id', genId);
+
+                        try {
+                            const pollRes = await safeFetchJson('importer.php', { method: 'POST', body: pollForm });
+                            if (pollRes && pollRes.status === 'completed' && pollRes.image_filename) {
+                                pollSuccess = true;
+                                finalImageUrl = 'upload/' + pollRes.image_filename;
+                                finalImageEngine = 'G-Labs (nano_banana_2)';
+                                logTerminal('✓ Foto AI G-Labs selesai (' + seconds + 's): ' + pollRes.image_filename, 'success');
+
+                                // Pasang foto ke draf resep
+                                const applyForm = new FormData();
+                                applyForm.append('ajax_action', 'apply_ai_image_draft');
+                                applyForm.append('csrf_token', CSRF_TOKEN);
+                                applyForm.append('import_id', polishRes.import_id);
+                                applyForm.append('image_filename', pollRes.image_filename);
+                                await safeFetchJson('importer.php', { method: 'POST', body: applyForm });
+                                break;
+                            } else if (pollRes && pollRes.status === 'failed') {
+                                logTerminal('✕ G-Labs gagal me-render: ' + (pollRes.error || 'Unknown error'), 'error');
+                                break;
+                            } else {
+                                // Masih running / queued
+                                if (statusText) statusText.textContent = 'G-Labs me-render foto resep #' + currentIndex + ' (' + seconds + 's)...';
+                                if (seconds % 6 === 0) {
+                                    logTerminal('  ⏳ G-Labs sedang me-render foto masakan (' + seconds + 's)...', 'info');
+                                }
+                            }
+                        } catch (pollErr) {
+                            console.warn('G-Labs poll retry:', pollErr);
+                        }
+                    }
+
+                    if (!pollSuccess && pollCount >= 40) {
+                        logTerminal('⚠️ G-Labs timeout (120s), menggunakan foto draf awal.', 'warning');
+                    }
+                } else {
+                    logTerminal('⚠️ G-Labs tidak merespons: ' + (submitRes?.error || 'Koneksi gagal') + ', memakai foto asli.', 'warning');
+                }
+
+                polishRes.image_url = finalImageUrl;
+                polishRes.image_engine = finalImageEngine;
+
+                successCount++;
+                batchResults.push(polishRes);
+                logTerminal('✓ Resep #' + currentIndex + ' berhasil diorkestrasi lengkap ("' + polishRes.recipe_title + '")!', 'success');
+                renderBatchTableRow(polishRes);
+                updateBatchCounterBadge();
+
             } catch (err) {
                 failCount++;
-                logTerminal('✕ Resep #' + currentIndex + ' error jaringan: ' + err.message, 'error');
+                logTerminal('✕ Resep #' + currentIndex + ' error: ' + err.message, 'error');
                 renderBatchErrorRow(currentUrl, err.message);
             }
 
             setStepPill(4); // Selesai 1 item
-            await new Promise(r => setTimeout(r, 600)); // Jeda halus antar antrean
+            
+            // Jeda antar-antrean (Human-like random delay untuk anti-bot / anti-scraping ban)
+            if (i < validUrls.length - 1) {
+                let delayMs = 600;
+                if (batchDelayMode === 'random_2_5') {
+                    delayMs = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
+                } else if (batchDelayMode === 'random_5_10') {
+                    delayMs = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+                } else if (batchDelayMode === 'fixed_1') {
+                    delayMs = 1000;
+                } else if (batchDelayMode === 'none') {
+                    delayMs = 600;
+                }
+                const delaySec = (delayMs / 1000).toFixed(1);
+                logTerminal('⏳ [Jeda Anti-Bot] Menunggu ' + delaySec + ' detik sebelum memproses resep berikutnya...', 'info');
+                await new Promise(r => setTimeout(r, delayMs));
+            } else {
+                await new Promise(r => setTimeout(r, 600));
+            }
         }
 
         // Selesai seluruh antrean

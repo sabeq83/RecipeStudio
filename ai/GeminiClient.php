@@ -858,6 +858,18 @@ class GeminiClient
         $promptCount = max(1, min(4, (int)($options['prompt_count'] ?? 1)));
         $targetLang = !empty($options['target_language']) ? strtolower(trim($options['target_language'])) : 'auto';
 
+        // Explicit Style & Scene Setting Descriptors for T2I Image Prompts
+        $styleDescriptors = [
+            'Modern Fine Dining' => "Michelin-starred fine dining presentation: elegantly plated in a minimalist dark slate ceramic bowl or matte porcelain dish, garnished with microgreens and delicate sauce art. Setting: luxurious dark polished granite or sleek neutral linen tabletop in an upscale restaurant ambiance (STRICTLY NO rustic wooden board, NO picnic or casual tableware). Lighting: refined soft diffused rim studio lighting, subtle elegant bokeh.",
+            'Rustic Comfort Food' => "Warm home-cooked comfort style: served in a rustic earthenware pottery bowl or seasoned cast-iron dish. Setting: warm cozy countryside kitchen dining on an authentic reclaimed rustic wooden table with natural grain, casually scattered fresh whole herbs, garlic cloves, and raw spices in the background. Lighting: warm golden natural window daylight, cozy homey atmosphere.",
+            'Rustic Kitchen Table' => "Warm home-cooked comfort style: served in a rustic earthenware pottery bowl or seasoned cast-iron dish. Setting: warm cozy countryside kitchen dining on an authentic reclaimed rustic wooden table with natural grain, casually scattered fresh whole herbs, garlic cloves, and raw spices in the background. Lighting: warm golden natural window daylight, cozy homey atmosphere.",
+            'Editorial Studio Overhead' => "Magazine editorial flatlay: 90-degree top-down overhead composition, perfectly arranged geometric food styling. Setting: pristine seamless white marble or neutral polished concrete surface, curated designer ceramic tableware, balanced minimalist styling props. Lighting: bright, even, shadowless commercial studio lighting.",
+            'Top-Down Flatlay' => "Magazine editorial flatlay: 90-degree top-down overhead composition, perfectly arranged geometric food styling. Setting: pristine seamless white marble or neutral polished concrete surface, curated designer ceramic tableware, balanced minimalist styling props. Lighting: bright, even, shadowless commercial studio lighting.",
+            'Dark Moody Culinary' => "Dramatic Chiaroscuro culinary art: served in an artisanal dark textured stoneware vessel. Setting: moody atmospheric culinary backdrop, charred dark stone or rich shadowed surface, high contrast. Lighting: dramatic directional side-lighting casting deep velvety shadows while highlighting glistening sauces and golden culinary textures.",
+            'Crispy Macro Close-Up' => "Extreme culinary macro photography: tight 45-degree close-up emphasizing mouthwatering glistening textures, sizzling edges, and aromatic steam. Setting: clean minimalist neutral studio plate with razor-sharp shallow depth of field focusing on food texture. Lighting: dynamic high-clarity commercial food lighting."
+        ];
+        $styleDetailedGuide = $styleDescriptors[$stylePreset] ?? "Professional commercial culinary photography: visual style '{$stylePreset}', authentic tableware, diffused studio lighting, 85mm f/1.8 lens, shallow depth of field.";
+
         if ($targetLang === 'id') {
             $langInstruction = "LANGUAGE REQUIREMENT: All recipe text (titles, summary, ingredients, instructions, and pro_tip) MUST be written in natural, mouthwatering, professional culinary Indonesian (Bahasa Indonesia). Do NOT translate into English. (Note: Only 'image_prompts' MUST remain in English for T2I engine compatibility).";
             $titleInstruction = "1. CLICK-WORTHY TITLES (Bahasa Indonesia):\n"
@@ -955,9 +967,11 @@ class GeminiClient
             . "   - Provide clear visual doneness cues (e.g., bumbu harum matang, warna keemasan, empuk meresap, caramelized edges).\n"
             . "   - Provide 1 actionable culinary 'pro_tip' for maximizing flavor, texture, and aroma based on the actual cooking technique used in the dish.\n\n"
             . "5. PHOTOREALISTIC FOOD PHOTOGRAPHY T2I PROMPTS:\n"
-            . "   - Visual Style requested: '{$stylePreset}'\n"
-            . "   - Aspect Ratio: '{$aspectRatio}'\n"
-            . "   - Generate EXACTLY {$promptCount} commercial English image prompt(s) for Text-to-Image AI depicting the finished dish at its absolute most delicious (authentic textures, steam rising softly, herb garnish, authentic tableware, 85mm f/1.8 lens, diffused studio lighting, shallow depth of field, 8k resolution, no watermark).\n\n"
+            . "   - Requested Visual Style: '{$stylePreset}'\n"
+            . "   - MANDATORY SETTING, LOCATION, TABLEWARE & PLATING DIRECTION:\n"
+            . "     {$styleDetailedGuide}\n"
+            . "   - Target Aspect Ratio: '{$aspectRatio}'\n"
+            . "   - Generate EXACTLY {$promptCount} commercial English image prompt(s) for Text-to-Image AI depicting the finished dish at its absolute most delicious. The prompt MUST incorporate the specified setting, location, tabletop surface, plating, and lighting strictly aligned with the requested style preset above (authentic textures, steam rising softly, herb garnish, 85mm f/1.8 lens, 8k resolution, no watermark).\n\n"
             . "Return ONLY valid JSON strictly matching this schema:\n"
             . "{\n"
             . "  \"titles\": {\n"
