@@ -5,8 +5,11 @@ if (isset($_GET['switch_product'])) {
     if (in_array($sw, ['airfry', 'nusasaji', 'proteinprep'])) {
         $_SESSION['active_product'] = $sw;
     }
-    $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
-    header("Location: $cleanUrl");
+    $queryParams = $_GET;
+    unset($queryParams['switch_product']);
+    $basePath = strtok($_SERVER['REQUEST_URI'], '?');
+    $newUrl = !empty($queryParams) ? ($basePath . '?' . http_build_query($queryParams)) : $basePath;
+    header("Location: $newUrl");
     exit;
 }
 $activeProduct = $_SESSION['active_product'] ?? 'airfry';

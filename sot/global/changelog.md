@@ -1,5 +1,9 @@
 # Changelog
 
+## V3.2.3 — Fix Product Switcher Query & Recipe Detail Guard (30/10/2026)
+- Preserve query parameters on product switch
+- Add safe redirect and null guard in recipes-detail and recipes-edit
+
 ## V3.2.2 — Fix Image Path & Bulk Review Queue (30/10/2026)
 - Fix photo resolution path with resolveImageUrl helper
 - Auto-hydrate existing AI photo on draft edit

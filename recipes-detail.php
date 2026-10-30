@@ -2,15 +2,21 @@
 
 <?php
 
-	if (isset($_GET['id'])) {
+	if (isset($_GET['id']) && trim($_GET['id']) !== '') {
 		$ID = clean($_GET['id']);
+		$qry    = "SELECT r.*, n.calories, n.protein_g, n.carbs_g, n.fat_g, n.serving_size_info FROM tbl_recipes r LEFT JOIN tbl_recipe_nutrition n ON r.recipe_id = n.recipe_id WHERE r.recipe_id = '$ID'";
+		$result = mysqli_query($connect, $qry);
+		$data   = mysqli_fetch_assoc($result);
 	} else {
-		$ID = "";
+		$data   = null;
 	}
 
-	$qry    = "SELECT r.*, n.calories, n.protein_g, n.carbs_g, n.fat_g, n.serving_size_info FROM tbl_recipes r LEFT JOIN tbl_recipe_nutrition n ON r.recipe_id = n.recipe_id WHERE r.recipe_id = '$ID'";
-    $result = mysqli_query($connect, $qry);
-    $data    = mysqli_fetch_assoc($result);
+	if (!$data) {
+		$_SESSION['msg'] = "Resep dengan ID tersebut tidak ditemukan atau belum dipilih.";
+		echo "<script>window.location.href = 'recipes.php';</script>";
+		echo "<noscript><meta http-equiv='refresh' content='0;url=recipes.php'></noscript>";
+		exit;
+	}
 
 ?>	
 

@@ -3,16 +3,23 @@
 
 <?php 
 
-    if (isset($_GET['id'])) {
-
+    if (isset($_GET['id']) && trim($_GET['id']) !== '') {
         $ID = clean($_GET['id']);
-
         $qry    = "SELECT * FROM tbl_recipes WHERE recipe_id = '$ID'";
         $result = mysqli_query($connect, $qry);
         $row    = mysqli_fetch_assoc($result);
 
         $qry_recipes = "SELECT * FROM tbl_recipes_gallery WHERE recipe_id = '$ID'";
         $recipes_results = mysqli_query($connect, $qry_recipes);
+    } else {
+        $row = null;
+    }
+
+    if (!$row) {
+        $_SESSION['msg'] = "Resep dengan ID tersebut tidak ditemukan atau belum dipilih.";
+        echo "<script>window.location.href = 'recipes.php';</script>";
+        echo "<noscript><meta http-equiv='refresh' content='0;url=recipes.php'></noscript>";
+        exit;
     }
 
     if (isset($_POST['submit'])) {
