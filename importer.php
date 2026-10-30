@@ -2043,8 +2043,23 @@ include_once('includes/header.php');
                 <div class="col-xs-12">
                     <div class="card corner-radius">
                         <div class="header">
-                            <h2>ANTREAN TINJAUAN RESEP (DRAF)</h2>
-                            <small>Daftar resep hasil ekstraksi yang tersimpan sebagai draf dan menunggu tinjauan admin sebelum dipublikasikan.</small>
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                                <div>
+                                    <h2>ANTREAN TINJAUAN RESEP (DRAF)</h2>
+                                    <small>Daftar resep hasil ekstraksi yang tersimpan sebagai draf dan menunggu tinjauan admin sebelum dipublikasikan.</small>
+                                </div>
+                                <?php if (!empty($drafts)): ?>
+                                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                                    <label style="margin:0; font-weight:normal; font-size:12px; cursor:pointer;">
+                                        <input type="checkbox" id="queueAutoPushCheckbox" checked style="vertical-align:middle; margin-right:4px;">
+                                        Auto-Push ke Live Server
+                                    </label>
+                                    <button type="button" id="btnPublishSelectedQueue" class="btn btn-success waves-effect" onclick="publishSelectedQueueDrafts();" style="border-radius:4px; font-weight:700;">
+                                        <i class="material-icons" style="font-size:16px; vertical-align:middle;">publish</i> TERBITKAN RESEP TERPILIH
+                                    </button>
+                                </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <div class="body table-responsive">
                             <?php if (empty($drafts)): ?>
@@ -2056,7 +2071,8 @@ include_once('includes/header.php');
                                 <table class="table table-hover table-striped">
                                     <thead>
                                         <tr>
-                                            <th>#</th>
+                                            <th style="width:30px;"><input type="checkbox" id="selectAllQueue" onclick="toggleSelectAllQueue(this);"></th>
+                                            <th style="width:65px;">Foto</th>
                                             <th>Judul Resep</th>
                                             <th>Sumber Domain</th>
                                             <th>Waktu Ekstraksi</th>
@@ -2065,9 +2081,30 @@ include_once('includes/header.php');
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($drafts as $idx => $d): ?>
+                                        <?php foreach ($drafts as $idx => $d): 
+                                            $imgSrc = '';
+                                            if (!empty($d['selected_image_url'])) {
+                                                $imgRaw = trim($d['selected_image_url']);
+                                                if (str_starts_with($imgRaw, 'http://') || str_starts_with($imgRaw, 'https://') || str_starts_with($imgRaw, 'upload/')) {
+                                                    $imgSrc = $imgRaw;
+                                                } else {
+                                                    $imgSrc = 'upload/' . $imgRaw;
+                                                }
+                                            }
+                                        ?>
                                             <tr>
-                                                <td><?php echo $idx + 1; ?></td>
+                                                <td><input type="checkbox" name="queueRowSelect" value="<?php echo (int)$d['id']; ?>" class="queue-row-cb"></td>
+                                                <td>
+                                                    <?php if ($imgSrc): ?>
+                                                        <a href="<?php echo htmlspecialchars($imgSrc); ?>" target="_blank" title="Klik untuk perbesar">
+                                                            <img src="<?php echo htmlspecialchars($imgSrc); ?>" style="width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1; box-shadow:0 1px 3px rgba(0,0,0,0.1);" alt="Thumbnail" onerror="this.onerror=null; this.src='assets/images/no-image.png';">
+                                                        </a>
+                                                    <?php else: ?>
+                                                        <div style="width:52px; height:52px; background:#f1f5f9; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#94a3b8; border:1px dashed #cbd5e1;">
+                                                            <i class="material-icons" style="font-size:20px;">image</i>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td>
                                                     <strong><?php echo htmlspecialchars($d['recipe_title'] ?: 'Tanpa Judul'); ?></strong>
                                                     <br>
@@ -2293,6 +2330,17 @@ include_once('includes/header.php');
     let currentImageCandidates = [];
     let currentSelectedImageUrl = <?php echo json_encode($currentDraft['selected_image_url'] ?? ''); ?>;
 
+    // Helper untuk memastikan URL gambar selalu memiliki prefix path yang tepat
+    function resolveImageUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        url = url.trim();
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('upload/')) {
+            return url;
+        }
+        return 'upload/' + url;
+    }
+
     <?php if ($currentDraft): ?>
         // Pre-populate candidate thumbs if draft exists
         try {
@@ -2304,6 +2352,33 @@ include_once('includes/header.php');
     <?php endif; ?>
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Auto-hydrate foto jika draf sudah memiliki selected_image_url
+        if (currentSelectedImageUrl) {
+            // Jika foto terpilih belum ada di daftar kandidat, tambahkan di posisi paling depan
+            if (!currentImageCandidates.includes(currentSelectedImageUrl)) {
+                currentImageCandidates.unshift(currentSelectedImageUrl);
+            }
+            // Jika berupa foto AI, aktifkan kotak showcase foto AI langsung
+            if (currentSelectedImageUrl.startsWith('ai_') || currentSelectedImageUrl.includes('/ai_')) {
+                const resultBox = document.getElementById('glabsDirectResultBox');
+                const resultImg = document.getElementById('glabsDirectResultImg');
+                const fnText = document.getElementById('glabsDirectFilenameText');
+                const appliedNotice = document.getElementById('glabsDirectAppliedNotice');
+                const btnApply = document.getElementById('btnApplyAiImageToRecipe');
+                if (resultBox && resultImg) {
+                    resultBox.style.display = 'block';
+                    resultImg.src = resolveImageUrl(currentSelectedImageUrl);
+                    if (fnText) fnText.textContent = currentSelectedImageUrl.split('/').pop();
+                    if (appliedNotice) appliedNotice.style.display = 'block';
+                    if (btnApply) {
+                        btnApply.innerHTML = '<i class="material-icons" style="font-size:15px; vertical-align:middle;">check</i> GAMBAR AI SUDAH AKTIF';
+                        btnApply.className = 'btn btn-success waves-effect disabled';
+                        btnApply.disabled = true;
+                    }
+                }
+            }
+        }
+
         if (currentImageCandidates && currentImageCandidates.length > 0) {
             renderImageCandidates(currentImageCandidates, currentSelectedImageUrl);
         }
@@ -2434,10 +2509,11 @@ include_once('includes/header.php');
         }
 
         candidates.forEach((imgUrl, i) => {
+            const isSelected = (imgUrl === selected || resolveImageUrl(imgUrl) === resolveImageUrl(selected));
             const img = document.createElement('img');
-            img.src = imgUrl;
-            img.className = 'image-candidate-thumb' + (imgUrl === selected ? ' selected' : '');
-            img.title = 'Pilih gambar #' + (i + 1);
+            img.src = resolveImageUrl(imgUrl);
+            img.className = 'image-candidate-thumb' + (isSelected ? ' selected' : '');
+            img.title = (imgUrl.startsWith('ai_') || imgUrl.includes('/ai_')) ? 'Foto Hasil AI (1080px)' : ('Pilih gambar #' + (i + 1));
             img.onclick = function() {
                 document.querySelectorAll('.image-candidate-thumb').forEach(el => el.classList.remove('selected'));
                 img.classList.add('selected');
@@ -2497,7 +2573,7 @@ include_once('includes/header.php');
         if (customFileInput && customFileInput.files.length > 0) {
             // keep custom image
         } else if (currentSelectedImageUrl) {
-            previewImg.src = currentSelectedImageUrl;
+            previewImg.src = resolveImageUrl(currentSelectedImageUrl);
             previewImg.style.display = 'block';
             previewNoImg.style.display = 'none';
         } else {
@@ -2662,6 +2738,55 @@ include_once('includes/header.php');
             }
         })
         .catch(err => alert('Kesalahan: ' + err.message));
+    }
+
+    function toggleSelectAllQueue(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.queue-row-cb');
+        checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    }
+
+    async function publishSelectedQueueDrafts() {
+        const selected = document.querySelectorAll('.queue-row-cb:checked');
+        if (selected.length === 0) {
+            alert('Pilih minimal satu draf resep untuk diterbitkan.');
+            return;
+        }
+
+        const draftIds = Array.from(selected).map(cb => parseInt(cb.value));
+        const autoPush = document.getElementById('queueAutoPushCheckbox')?.checked ? 1 : 0;
+
+        const confirmMsg = 'Terbitkan ' + draftIds.length + ' resep terpilih ke database utama Recipe Studio?' +
+            (autoPush ? '\n\n* Opsi Auto-Push AKTIF: Resep akan otomatis disinkronkan ke Live Hosting / Android App.' : '');
+
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('btnPublishSelectedQueue');
+        const origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="material-icons" style="font-size:16px; vertical-align:middle;">autorenew</i> Menerbitkan...';
+
+        const formData = new FormData();
+        formData.append('ajax_action', 'bulk_publish_drafts');
+        formData.append('csrf_token', CSRF_TOKEN);
+        formData.append('draft_ids', JSON.stringify(draftIds));
+        formData.append('auto_push', autoPush);
+
+        try {
+            const res = await safeFetchJson('importer.php', { method: 'POST', body: formData });
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+
+            if (res && res.success) {
+                alert('✓ ' + (res.message || 'Resep berhasil dipublikasikan.'));
+                location.reload();
+            } else {
+                alert('Gagal menerbitkan resep: ' + (res.error || 'Kesalahan'));
+            }
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            alert('Kesalahan saat menerbitkan resep: ' + err.message);
+        }
     }
 
     function quickReject(id) {
@@ -3780,7 +3905,7 @@ include_once('includes/header.php');
 
         const previewImg = document.getElementById('modalPreviewImg');
         if (previewImg) {
-            previewImg.src = item.image_url || 'assets/images/no-image.png';
+            previewImg.src = resolveImageUrl(item.image_url || item.selected_image_url) || 'assets/images/no-image.png';
         }
 
         const promptBox = document.getElementById('modalPhotoPromptText');

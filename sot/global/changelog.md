@@ -1,5 +1,10 @@
 # Changelog
 
+## V3.2.2 — Fix Image Path & Bulk Review Queue (30/10/2026)
+- Fix photo resolution path with resolveImageUrl helper
+- Auto-hydrate existing AI photo on draft edit
+- Add thumbnail and bulk publish toolbar to Queue tab
+
 ## V3.2.1 — Fix Batch Orchestrator G-Labs Async, Scene Setting & Draft Publish (30/10/2026)
 - Migrasi Batch Orchestrator ke alur murni G-Labs asinkron dengan polling live terminal dan jeda acak anti-bot
 - Perbaikan parsing bahan dan instruksi draf Cookpad dari kolom ingredients_json dan instructions_json
