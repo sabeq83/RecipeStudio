@@ -1,5 +1,10 @@
 # Changelog
 
+## V3.2.4 — Fix Auto-Target Product in Recipe Sync (31/10/2026)
+- Auto-resolve product_code in SyncClient pushRecipeToLive
+- Send target_product in single and batch push
+- Dynamic live host preview link based on target product
+
 ## V3.2.3 — Fix Product Switcher Query & Recipe Detail Guard (30/10/2026)
 - Preserve query parameters on product switch
 - Add safe redirect and null guard in recipes-detail and recipes-edit

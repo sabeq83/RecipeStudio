@@ -251,19 +251,21 @@
 										</center></td>
 
 										<!-- Live Hosting Sync Column (Only for Local Studio) -->
-										<?php if (defined('ENABLE_STUDIO_FEATURES') && ENABLE_STUDIO_FEATURES): ?>
+										<?php if (defined('ENABLE_STUDIO_FEATURES') && ENABLE_STUDIO_FEATURES): 
+											$rowProduct = !empty($data['product_code']) ? $data['product_code'] : 'airfry';
+										?>
 										<td style="vertical-align: middle;" class="text-center" id="sync-cell-<?php echo $data['recipe_id'];?>">
 											<?php if (!empty($data['live_recipe_id'])) { ?>
 												<span class="label bg-green" title="Terakhir disinkron: <?php echo $data['last_synced_at'] ?? '-';?>">✓ Live #<?php echo $data['live_recipe_id'];?></span>
 												<div style="margin-top: 6px;">
-													<button type="button" class="btn btn-xs bg-indigo waves-effect btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="Sync ulang ke Web Hosting">
+													<button type="button" class="btn btn-xs bg-indigo waves-effect btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-product="<?php echo htmlspecialchars($rowProduct, ENT_QUOTES);?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="Sync ulang ke Web Hosting (<?php echo htmlspecialchars($rowProduct);?>)">
 														<i class="material-icons" style="font-size:12px;vertical-align:middle;">sync</i> Sync Ulang
 													</button>
 												</div>
 											<?php } else { ?>
 												<span class="label bg-grey">Hanya Lokal</span>
 												<div style="margin-top: 6px;">
-													<button type="button" class="btn btn-xs bg-cyan waves-effect btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="Push resep & foto ke hosting airfry.web.id">
+													<button type="button" class="btn btn-xs bg-cyan waves-effect btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-product="<?php echo htmlspecialchars($rowProduct, ENT_QUOTES);?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="Push resep & foto ke hosting (<?php echo htmlspecialchars($rowProduct);?>)">
 														<i class="material-icons" style="font-size:12px;vertical-align:middle;">cloud_upload</i> 🚀 Push
 													</button>
 												</div>
@@ -274,7 +276,7 @@
 										<td style="vertical-align: middle;"><center>
 
 											<?php if (defined('ENABLE_STUDIO_FEATURES') && ENABLE_STUDIO_FEATURES): ?>
-											<a href="javascript:void(0)" class="btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="1-Click Push ke Web Hosting">
+											<a href="javascript:void(0)" class="btn-push-single" data-id="<?php echo $data['recipe_id'];?>" data-product="<?php echo htmlspecialchars($rowProduct, ENT_QUOTES);?>" data-title="<?php echo htmlspecialchars($data['recipe_title'], ENT_QUOTES);?>" title="1-Click Push ke Web Hosting (<?php echo htmlspecialchars($rowProduct);?>)">
 												<i class="material-icons" style="color:#009688;">cloud_upload</i>
 											</a>
 											<?php endif; ?>
@@ -357,12 +359,13 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#syncModal').modal('show');
     }
 
-    function updateSyncCell(recipeId, liveId, dateStr) {
+    function updateSyncCell(recipeId, liveId, dateStr, productCode) {
         var cell = document.getElementById('sync-cell-' + recipeId);
         if (cell) {
+            var pCode = productCode || 'airfry';
             cell.innerHTML = '<span class="label bg-green" title="Terakhir disinkron: ' + (dateStr || 'Baru saja') + '">✓ Live #' + liveId + '</span>' +
                 '<div style="margin-top: 6px;">' +
-                '<button type="button" class="btn btn-xs bg-indigo waves-effect btn-push-single" data-id="' + recipeId + '" title="Sync ulang ke Web Hosting">' +
+                '<button type="button" class="btn btn-xs bg-indigo waves-effect btn-push-single" data-id="' + recipeId + '" data-product="' + pCode + '" title="Sync ulang ke Web Hosting (' + pCode + ')">' +
                 '<i class="material-icons" style="font-size:12px;vertical-align:middle;">sync</i> Sync Ulang' +
                 '</button>' +
                 '</div>';
@@ -419,13 +422,18 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
 
         var recipeId = btn.getAttribute('data-id');
+        var recipeProduct = btn.getAttribute('data-product') || '<?php echo htmlspecialchars($activeProduct); ?>';
         var recipeTitle = btn.getAttribute('data-title') || 'Resep';
 
-        showSyncModal('Menerbitkan ke Web Hosting', '', true, 'Mengunggah "' + recipeTitle + '" beserta foto ke airfry.web.id...');
+        var targetDesc = (recipeProduct === 'nusasaji') ? 'Nusa Saji (airfry.web.id/nusa)' : 'AirFryer (airfry.web.id)';
+        showSyncModal('Menerbitkan ke Web Hosting', '', true, 'Mengunggah "' + recipeTitle + '" beserta foto ke ' + targetDesc + '...');
 
         var formData = new URLSearchParams();
         formData.append('action', 'push_single');
         formData.append('recipe_id', recipeId);
+        if (recipeProduct) {
+            formData.append('target_product', recipeProduct);
+        }
 
         fetch('ajax_sync.php', {
             method: 'POST',
@@ -434,13 +442,16 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(r) { return r.json(); })
         .then(function(res) {
             if (res.success) {
-                updateSyncCell(recipeId, res.live_recipe_id, 'Baru saja');
+                var pCode = res.target_product || recipeProduct || 'airfry';
+                var liveUrl = (pCode === 'nusasaji') ? 'https://airfry.web.id/nusa/' : 'https://airfry.web.id';
+                var liveLabel = (pCode === 'nusasaji') ? 'Website Live Nusa Saji' : 'Website Live AirFryer';
+                updateSyncCell(recipeId, res.live_recipe_id, 'Baru saja', pCode);
                 var html = '<div class="alert alert-success" style="margin-bottom:0;">' +
                     '<h4><i class="material-icons" style="vertical-align:middle;">check_circle</i> Resep Berhasil Dipublish!</h4>' +
                     '<p>' + (res.message || 'Resep dan foto sukses tersimpan di hosting live.') + '</p>' +
-                    '<p style="margin-top:10px;">ID di hosting live: <span class="badge bg-green">#' + res.live_recipe_id + '</span></p>' +
+                    '<p style="margin-top:10px;">Target: <strong>' + pCode + '</strong> | ID di hosting live: <span class="badge bg-green">#' + res.live_recipe_id + '</span></p>' +
                     '<div style="margin-top:15px;">' +
-                    '<a href="https://airfry.web.id" target="_blank" class="btn btn-sm bg-blue waves-effect" style="color:#fff;"><i class="material-icons" style="font-size:14px;vertical-align:middle;">open_in_new</i> Buka Website Live</a>' +
+                    '<a href="' + liveUrl + '" target="_blank" class="btn btn-sm bg-blue waves-effect" style="color:#fff;"><i class="material-icons" style="font-size:14px;vertical-align:middle;">open_in_new</i> Buka ' + liveLabel + '</a>' +
                     '</div>' +
                     '</div>';
                 showSyncModal('Sukses Sinkronisasi', html, false);
@@ -472,15 +483,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 ids.push(cb.value);
             });
 
-            if (!confirm('Anda akan mengirim ' + ids.length + ' resep terpilih ke live web hosting (airfry.web.id). Lanjutkan?')) {
+            var currentProduct = '<?php echo htmlspecialchars($activeProduct); ?>';
+            var targetDesc = (currentProduct === 'nusasaji') ? 'Nusa Saji (airfry.web.id/nusa)' : 'AirFryer (airfry.web.id)';
+
+            if (!confirm('Anda akan mengirim ' + ids.length + ' resep terpilih ke live web hosting ' + targetDesc + '. Lanjutkan?')) {
                 return;
             }
 
-            showSyncModal('Batch Push ke Web Hosting', '', true, 'Mengunggah ' + ids.length + ' resep dan foto ke web hosting...');
+            showSyncModal('Batch Push ke Web Hosting', '', true, 'Mengunggah ' + ids.length + ' resep dan foto ke ' + targetDesc + '...');
 
             var formData = new URLSearchParams();
             formData.append('action', 'push_batch');
             formData.append('recipe_ids', ids.join(','));
+            formData.append('target_product', currentProduct);
 
             fetch('ajax_sync.php', {
                 method: 'POST',
@@ -492,17 +507,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (res.results && res.results.length) {
                         res.results.forEach(function(item) {
                             if (item.result && item.result.success && item.result.live_recipe_id) {
-                                updateSyncCell(item.recipe_id, item.result.live_recipe_id, 'Baru saja');
+                                var itemProduct = item.result.target_product || currentProduct;
+                                updateSyncCell(item.recipe_id, item.result.live_recipe_id, 'Baru saja', itemProduct);
                             }
                         });
                     }
+
+                    var liveUrl = (currentProduct === 'nusasaji') ? 'https://airfry.web.id/nusa/' : 'https://airfry.web.id';
+                    var liveLabel = (currentProduct === 'nusasaji') ? 'Buka Website Live Nusa Saji' : 'Buka Website Live AirFryer';
 
                     var html = '<div class="alert alert-success" style="margin-bottom:10px;">' +
                         '<h4><i class="material-icons" style="vertical-align:middle;">check_circle</i> Batch Sync Selesai!</h4>' +
                         '<p>' + res.message + '</p>' +
                         '</div>' +
                         '<div style="text-align:center; margin-top:15px;">' +
-                        '<a href="https://airfry.web.id" target="_blank" class="btn btn-sm bg-blue waves-effect" style="color:#fff;"><i class="material-icons" style="font-size:14px;vertical-align:middle;">open_in_new</i> Buka Website Live</a>' +
+                        '<a href="' + liveUrl + '" target="_blank" class="btn btn-sm bg-blue waves-effect" style="color:#fff;"><i class="material-icons" style="font-size:14px;vertical-align:middle;">open_in_new</i> ' + liveLabel + '</a>' +
                         '</div>';
                     showSyncModal('Hasil Batch Sync', html, false);
                 } else {

@@ -402,12 +402,20 @@ class SyncClient
             return ['success' => false, 'error' => "Resep dengan ID #{$recipeId} tidak ditemukan di database lokal."];
         }
 
-        // Resolusi target URL dan Token berdasarkan targetProduct
-        if (!empty($targetProduct)) {
-            $dest = $this->getDestinationForProduct($targetProduct);
-            $url = $dest['target_url'];
-            $token = $dest['token'];
-        } else {
+        // Resolusi target URL dan Token berdasarkan prioritas:
+        // 1. Parameter eksplisit $targetProduct
+        // 2. Kolom $recipe['product_code'] dari database lokal
+        // 3. Sesi aktif $_SESSION['active_product']
+        // 4. Default 'airfry'
+        $effectiveProduct = !empty($targetProduct)
+            ? trim($targetProduct)
+            : (!empty($recipe['product_code']) ? trim($recipe['product_code']) : ($_SESSION['active_product'] ?? 'airfry'));
+
+        $dest = $this->getDestinationForProduct($effectiveProduct);
+        $url = $dest['target_url'] ?? '';
+        $token = $dest['token'] ?? '';
+
+        if (empty($url) || empty($token)) {
             $url = $this->getTargetUrl();
             $token = $this->getSecretToken();
         }
@@ -511,8 +519,8 @@ class SyncClient
             }
 
             // Update last_sync_at pada tbl_sync_destinations
-            if (!empty($targetProduct)) {
-                $safeP = $this->db->real_escape_string($targetProduct);
+            if (!empty($effectiveProduct)) {
+                $safeP = $this->db->real_escape_string($effectiveProduct);
                 $this->db->query("UPDATE `tbl_sync_destinations` SET `last_sync_at` = '{$now}' WHERE `product_code` = '{$safeP}'");
             }
 
@@ -521,9 +529,10 @@ class SyncClient
                 'action' => $data['action'] ?? 'synced',
                 'live_recipe_id' => $liveId,
                 'recipe_title' => $recipe['recipe_title'],
+                'target_product' => $effectiveProduct,
                 'video_uploaded' => !empty($data['video_uploaded']) || $hasVideoFile,
                 'video_filename' => $data['video_filename'] ?? ($hasVideoFile ? $videoFilename : ''),
-                'message' => $data['message'] ?? "Resep berhasil diterbitkan ke live hosting (ID: #{$liveId})!"
+                'message' => $data['message'] ?? "Resep berhasil diterbitkan ke live hosting ({$effectiveProduct}: ID #{$liveId})!"
             ];
         }
 

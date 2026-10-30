@@ -58,17 +58,21 @@
 									</div>
 									<?php unset($_SESSION['msg']); } ?>
 
-									<?php if (defined('ENABLE_STUDIO_FEATURES') && ENABLE_STUDIO_FEATURES): ?>
+									<?php if (defined('ENABLE_STUDIO_FEATURES') && ENABLE_STUDIO_FEATURES): 
+										$recipeProduct = !empty($data['product_code']) ? $data['product_code'] : 'airfry';
+										$liveHostUrl = ($recipeProduct === 'nusasaji') ? 'https://airfry.web.id/nusa/' : 'https://airfry.web.id';
+										$liveHostName = ($recipeProduct === 'nusasaji') ? 'airfry.web.id/nusa' : 'airfry.web.id';
+									?>
 									<!-- Sync Status Banner -->
 									<div id="detail-sync-banner" style="margin-bottom: 20px;">
 										<?php if (!empty($data['live_recipe_id'])) { ?>
 										<div class="alert alert-success" style="border-radius:6px; padding:12px 16px;">
-											<strong><i class="material-icons" style="vertical-align:middle;font-size:18px;">check_circle</i> Terbit di Web Hosting:</strong> Resep ini sudah live di hosting <a href="https://airfry.web.id" target="_blank" style="color:#fff; text-decoration:underline;">airfry.web.id</a> (ID: #<?php echo $data['live_recipe_id'];?>).
+											<strong><i class="material-icons" style="vertical-align:middle;font-size:18px;">check_circle</i> Terbit di Web Hosting:</strong> Resep ini sudah live di hosting <a href="<?php echo $liveHostUrl;?>" target="_blank" style="color:#fff; text-decoration:underline; font-weight:bold;"><?php echo $liveHostName;?></a> (ID: #<?php echo $data['live_recipe_id'];?> | App: <?php echo htmlspecialchars($recipeProduct);?>).
 											<small style="display:block; margin-top:4px; opacity:0.9;">Terakhir disinkron: <?php echo $data['last_synced_at'] ?? '-';?></small>
 										</div>
 										<?php } else { ?>
 										<div class="alert alert-warning" style="border-radius:6px; padding:12px 16px;">
-											<strong><i class="material-icons" style="vertical-align:middle;font-size:18px;">cloud_off</i> Status Lokal:</strong> Resep ini baru ada di database lokal, belum dipublikasikan ke web hosting live.
+											<strong><i class="material-icons" style="vertical-align:middle;font-size:18px;">cloud_off</i> Status Lokal:</strong> Resep ini baru ada di database lokal, belum dipublikasikan ke web hosting live (Target: <?php echo htmlspecialchars($recipeProduct);?> &rarr; <?php echo $liveHostName;?>).
 										</div>
 										<?php } ?>
 									</div>
@@ -118,6 +122,7 @@
 				var formData = new URLSearchParams();
 				formData.append('action', 'push_single');
 				formData.append('recipe_id', '<?php echo $data['recipe_id']; ?>');
+				formData.append('target_product', '<?php echo htmlspecialchars($recipeProduct); ?>');
 
 				fetch('ajax_sync.php', {
 					method: 'POST',
@@ -129,13 +134,16 @@
 					btnSync.innerHTML = originalHtml;
 					if (res.success) {
 						var banner = document.getElementById('detail-sync-banner');
+						var pCode = res.target_product || '<?php echo $recipeProduct; ?>';
+						var liveUrl = (pCode === 'nusasaji') ? 'https://airfry.web.id/nusa/' : 'https://airfry.web.id';
+						var liveName = (pCode === 'nusasaji') ? 'airfry.web.id/nusa' : 'airfry.web.id';
 						if (banner) {
 							banner.innerHTML = '<div class="alert alert-success" style="border-radius:6px; padding:12px 16px;">' +
 								'<strong><i class="material-icons" style="vertical-align:middle;font-size:18px;">check_circle</i> Terbit di Web Hosting:</strong> ' + (res.message || 'Resep berhasil dipublikasikan ke hosting!') +
-								'<div style="margin-top:8px;"><a href="https://airfry.web.id" target="_blank" class="btn btn-xs bg-white waves-effect" style="color:#2e7d32; font-weight:bold;"><i class="material-icons" style="font-size:12px;vertical-align:middle;">open_in_new</i> Lihat di Web Hosting</a></div>' +
+								'<div style="margin-top:8px;"><a href="' + liveUrl + '" target="_blank" class="btn btn-xs bg-white waves-effect" style="color:#2e7d32; font-weight:bold;"><i class="material-icons" style="font-size:12px;vertical-align:middle;">open_in_new</i> Lihat di Web Hosting (' + liveName + ')</a></div>' +
 								'</div>';
 						}
-						alert('Resep berhasil dipublikasikan ke hosting airfry.web.id (ID: #' + res.live_recipe_id + ')!');
+						alert('Resep berhasil dipublikasikan ke hosting ' + liveName + ' (ID: #' + res.live_recipe_id + ')!');
 					} else {
 						alert('Gagal: ' + (res.error || 'Terjadi kesalahan saat push ke hosting.'));
 					}
